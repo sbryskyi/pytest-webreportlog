@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{% block title %}Session #{{ session.id }} - pytest-webreportlog{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Back button -->
+    <a href="/" class="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+        <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to Sessions
+    </a>
+
+    <!-- Session header -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Session #{{ session.id }}</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ session.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Pytest {{ session.pytest_version }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Exit status: {{ session.exitstatus }}</p>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="mt-6 grid grid-cols-2 md:grid-cols-7 gap-2">
+            <div id="card-all" class="filter-card bg-gray-50 dark:bg-gray-700 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('all')" data-filter="all">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Total</span>
+                </div>
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">{{ session.total_tests }}</span>
+            </div>
+            <div id="card-passed" class="filter-card bg-green-50 dark:bg-green-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('passed')" data-filter="passed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-green-700 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-green-600 dark:text-green-400">Passed</span>
+                </div>
+                <span class="text-lg font-semibold text-green-800 dark:text-green-300">{{ session.passed }}</span>
+            </div>
+            <div id="card-failed" class="filter-card bg-red-50 dark:bg-red-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('failed')" data-filter="failed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-red-700 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-red-600 dark:text-red-400">Failed</span>
+                </div>
+                <span class="text-lg font-semibold text-red-800 dark:text-red-300">{{ session.failed }}</span>
+            </div>
+            <div id="card-skipped" class="filter-card bg-yellow-50 dark:bg-yellow-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('skipped')" data-filter="skipped">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-yellow-700 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Skipped</span>
+                </div>
+                <span class="text-lg font-semibold text-yellow-800 dark:text-yellow-300">{{ session.skipped }}</span>
+            </div>
+            <div id="card-xfailed" class="filter-card bg-amber-50 dark:bg-amber-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('xfailed')" data-filter="xfailed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-amber-700 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-amber-600 dark:text-amber-400">XFailed</span>
+                </div>
+                <span class="text-lg font-semibold text-amber-800 dark:text-amber-300">{{ session.xfailed }}</span>
+            </div>
+            <div id="card-xpassed" class="filter-card bg-rose-50 dark:bg-rose-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('xpassed')" data-filter="xpassed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-rose-700 dark:text-rose-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-rose-600 dark:text-rose-400">XPassed</span>
+                </div>
+                <span class="text-lg font-semibold text-rose-800 dark:text-rose-300">{{ session.xpassed }}</span>
+            </div>
+            <div id="card-error" class="filter-card bg-orange-50 dark:bg-orange-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('error')" data-filter="error">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-orange-700 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-orange-600 dark:text-orange-400">Errors</span>
+                </div>
+                <span class="text-lg font-semibold text-orange-800 dark:text-orange-300">{{ session.errors }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test results -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+        <div class="px-6 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
+            <button id="toggle-all-btn" class="cursor-pointer hover:text-gray-900 dark:hover:text-gray-300" onclick="toggleAll()">
+                <svg id="toggle-all-arrow" class="h-5 w-5 text-gray-400 dark:text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </button>
+            <button id="sort-status" class="sort-btn w-14 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onclick="sortTests('status')">
+                Status
+            </button>
+            <button id="sort-name" class="sort-btn flex-1 text-left text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onclick="sortTests('name')">
+                Name
+            </button>
+            <button id="sort-duration" class="sort-btn text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onclick="sortTests('duration')">
+                Duration
+            </button>
+        </div>
+
+        {% if test_entries %}
+        <div id="test-results-container" class="divide-y divide-gray-100 dark:divide-gray-700">
+            {% for entry in test_entries %}
+            <details class="group test-entry" data-outcome="{{ entry.outcome }}" data-nodeid="{{ entry.nodeid }}" data-duration="{{ entry.duration }}">
+                <summary class="px-6 py-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3">
+                    <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <div class="w-14 flex items-center">
+                        {% if entry.result_label == 'PASS' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300">
+                            PASS
+                        </span>
+                        {% elif entry.result_label == 'FAIL' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300">
+                            FAIL
+                        </span>
+                        {% elif entry.result_label == 'SKIP' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300">
+                            SKIP
+                        </span>
+                        {% elif entry.result_label == 'XFAIL' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300">
+                            XFAIL
+                        </span>
+                        {% elif entry.result_label == 'XPASS' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300">
+                            XPASS
+                        </span>
+                        {% elif entry.result_label == 'ERROR' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300">
+                            ERROR
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ entry.nodeid }}</p>
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ "%.3f"|format(entry.duration) }}s
+                    </div>
+                </summary>
+
+                <div class="pl-14 pr-6 py-1 bg-gray-50 dark:bg-gray-700/50">
+                    <!-- Location info -->
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        {{ entry.location[0] }}::{{ entry.location[2] }} (line {{ entry.location[1] }})
+                    </div>
+
+                    {% if not entry.is_phase_error %}
+                        <!-- Show individual phase subsections -->
+                        <div class="space-y-0">
+                        {% for phase_name, phase_report in [('setup', entry.setup_report), ('call', entry.call_report), ('teardown', entry.teardown_report)] %}
+                            {% if phase_report %}
+                                {% if phase_report.longrepr or phase_report.sections %}
+                                <!-- Phase with content - make it collapsible -->
+                                <details class="phase-details group/phase bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 {% if not loop.first %}-mt-px{% endif %}">
+                                    <summary class="px-3 py-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center">
+                                        <div class="flex items-center space-x-2">
+                                            <svg class="h-4 w-4 text-gray-400 dark:text-gray-500 group-open/phase:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                            </svg>
+                                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ phase_name }}</span>
+                                        </div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "%.3f"|format(phase_report.duration) }}s</span>
+                                    </summary>
+
+                                    <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600 space-y-2">
+                                        <!-- Show traceback if failure/error -->
+                                        {% if phase_report.longrepr %}
+                                        <div>
+                                            <h5 class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Traceback</h5>
+                                            <pre class="text-xs bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto font-mono text-gray-900 dark:text-gray-300">{{ phase_report.longrepr }}</pre>
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Show captured output -->
+                                        {% if phase_report.sections %}
+                                            {% for section_name, section_content in phase_report.sections %}
+                                            <div class="bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{{ section_name }}</p>
+                                                <pre class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">{{ section_content|strip_ansi }}</pre>
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                </details>
+                                {% else %}
+                                <!-- Phase without content - just show the row -->
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 {% if not loop.first %}-mt-px{% endif %}">
+                                    <div class="px-3 py-0 flex justify-between items-center">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ phase_name }}</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "%.3f"|format(phase_report.duration) }}s</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        </div>
+                    {% else %}
+                        <!-- For phase errors, show single report -->
+                        {% set report = entry.report %}
+
+                        <!-- Show traceback if failure/error -->
+                        {% if report.longrepr %}
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Traceback</h4>
+                            <pre class="text-xs bg-white dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto font-mono text-gray-900 dark:text-gray-300">{{ report.longrepr }}</pre>
+                        </div>
+                        {% endif %}
+
+                        <!-- Show captured output -->
+                        {% if report.sections %}
+                            {% for section_name, section_content in report.sections %}
+                            <div class="bg-white p-2 rounded border border-gray-200">
+                                <p class="text-xs font-semibold text-gray-600 mb-1">{{ section_name }}</p>
+                                <pre class="text-xs text-gray-700 whitespace-pre-wrap font-mono">{{ section_content|strip_ansi }}</pre>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <!-- Show message if no output -->
+                        {% if not report.longrepr and not report.sections %}
+                        <p class="text-xs text-gray-500 italic">No output captured.</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center text-gray-500">
+            No test results found
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Initialize all filters as active
+const filterState = {
+    'all': true,
+    'passed': true,
+    'failed': true,
+    'skipped': true,
+    'xfailed': true,
+    'xpassed': true,
+    'error': true
+};
+
+function toggleFilter(outcome) {
+    const card = document.getElementById('card-' + outcome);
+
+    // Handle 'all' filter
+    if (outcome === 'all') {
+        const newState = !filterState['all'];
+        filterState['all'] = newState;
+
+        // Set all filters to same state
+        Object.keys(filterState).forEach(key => {
+            filterState[key] = newState;
+        });
+    } else {
+        // Toggle individual filter
+        filterState[outcome] = !filterState[outcome];
+
+        // Update 'all' state based on others
+        const allActive = ['passed', 'failed', 'skipped', 'xfailed', 'xpassed', 'error'].every(k => filterState[k]);
+        filterState['all'] = allActive;
+    }
+
+    // Update UI
+    updateFilterUI();
+    applyFilters();
+}
+
+function updateFilterUI() {
+    Object.keys(filterState).forEach(outcome => {
+        const card = document.getElementById('card-' + outcome);
+        const checkmark = card.querySelector('.checkmark');
+
+        if (filterState[outcome]) {
+            // Active state
+            card.classList.remove('opacity-40');
+            card.classList.add('border-gray-300');
+            checkmark.style.display = 'block';
+        } else {
+            // Inactive state
+            card.classList.add('opacity-40');
+            card.classList.remove('border-gray-300');
+            checkmark.style.display = 'none';
+        }
+    });
+}
+
+function applyFilters() {
+    const testEntries = document.querySelectorAll('.test-entry');
+
+    testEntries.forEach(entry => {
+        const outcome = entry.getAttribute('data-outcome');
+
+        // Show/hide based on filter state
+        if (filterState[outcome]) {
+            entry.style.display = '';
+        } else {
+            entry.style.display = 'none';
+        }
+    });
+}
+
+// Initialize UI on page load
+document.addEventListener('DOMContentLoaded', updateFilterUI);
+
+// Sorting functionality
+let currentSort = null;
+let sortDirection = 'asc'; // 'asc' or 'desc'
+
+// Define outcome order for status sorting
+const outcomeOrder = {
+    'error': 0,
+    'failed': 1,
+    'xpassed': 2,
+    'passed': 3,
+    'xfailed': 4,
+    'skipped': 5
+};
+
+function sortTests(sortBy) {
+    const container = document.getElementById('test-results-container');
+    const entries = Array.from(container.querySelectorAll('.test-entry'));
+
+    // Toggle direction if clicking same sort button
+    if (currentSort === sortBy) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort = sortBy;
+        sortDirection = 'asc';
+    }
+
+    // Sort the entries
+    entries.sort((a, b) => {
+        let compareResult = 0;
+
+        if (sortBy === 'status') {
+            const outcomeA = a.getAttribute('data-outcome');
+            const outcomeB = b.getAttribute('data-outcome');
+            compareResult = outcomeOrder[outcomeA] - outcomeOrder[outcomeB];
+        } else if (sortBy === 'name') {
+            const nameA = a.getAttribute('data-nodeid').toLowerCase();
+            const nameB = b.getAttribute('data-nodeid').toLowerCase();
+            compareResult = nameA.localeCompare(nameB);
+        } else if (sortBy === 'duration') {
+            const durationA = parseFloat(a.getAttribute('data-duration'));
+            const durationB = parseFloat(b.getAttribute('data-duration'));
+            compareResult = durationA - durationB;
+        }
+
+        return sortDirection === 'asc' ? compareResult : -compareResult;
+    });
+
+    // Reorder DOM elements
+    entries.forEach(entry => container.appendChild(entry));
+
+    // Update sort button UI
+    updateSortUI(sortBy);
+}
+
+function updateSortUI(activeSort) {
+    // Reset all buttons
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('text-gray-900');
+        btn.classList.add('text-gray-600');
+        // Reset text to remove arrows
+        const sortType = btn.id.replace('sort-', '');
+        const baseText = sortType.charAt(0).toUpperCase() + sortType.slice(1);
+        btn.textContent = baseText;
+    });
+
+    // Highlight active button
+    const activeButton = document.getElementById('sort-' + activeSort);
+    if (activeButton) {
+        activeButton.classList.remove('text-gray-600');
+        activeButton.classList.add('text-gray-900');
+
+        // Update button text to show direction
+        const directionArrow = sortDirection === 'asc' ? '↑' : '↓';
+        const baseText = activeSort.charAt(0).toUpperCase() + activeSort.slice(1);
+        activeButton.textContent = `${baseText} ${directionArrow}`;
+    }
+}
+
+// Collapse/expand all functionality
+function updateArrowState() {
+    const testEntries = document.querySelectorAll('.test-entry');
+    const phaseDetails = document.querySelectorAll('.phase-details');
+    const arrow = document.getElementById('toggle-all-arrow');
+
+    // Check if any test entry or phase detail is open
+    let anyOpen = false;
+    testEntries.forEach(entry => {
+        if (entry.hasAttribute('open')) anyOpen = true;
+    });
+    phaseDetails.forEach(details => {
+        if (details.hasAttribute('open')) anyOpen = true;
+    });
+
+    // Update arrow rotation based on state
+    if (anyOpen) {
+        arrow.classList.add('rotate-90');
+    } else {
+        arrow.classList.remove('rotate-90');
+    }
+}
+
+function toggleAll() {
+    const testEntries = document.querySelectorAll('.test-entry');
+    const phaseDetails = document.querySelectorAll('.phase-details');
+
+    // Check if anything is currently open
+    let anyOpen = false;
+    testEntries.forEach(entry => {
+        if (entry.hasAttribute('open')) anyOpen = true;
+    });
+    phaseDetails.forEach(details => {
+        if (details.hasAttribute('open')) anyOpen = true;
+    });
+
+    if (anyOpen) {
+        // Collapse everything
+        testEntries.forEach(entry => {
+            entry.removeAttribute('open');
+        });
+        phaseDetails.forEach(details => {
+            details.removeAttribute('open');
+        });
+    } else {
+        // Expand everything
+        testEntries.forEach(entry => {
+            entry.setAttribute('open', '');
+        });
+        phaseDetails.forEach(details => {
+            details.setAttribute('open', '');
+        });
+    }
+
+    // Update arrow state
+    updateArrowState();
+}
+
+// Add event listeners to track when individual items are toggled
+document.addEventListener('DOMContentLoaded', function() {
+    const testEntries = document.querySelectorAll('.test-entry');
+    const phaseDetails = document.querySelectorAll('.phase-details');
+
+    testEntries.forEach(entry => {
+        entry.addEventListener('toggle', updateArrowState);
+    });
+
+    phaseDetails.forEach(details => {
+        details.addEventListener('toggle', updateArrowState);
+    });
+
+    // Set initial arrow state
+    updateArrowState();
+});
+</script>
+{% endblock %}
