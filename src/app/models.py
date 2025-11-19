@@ -61,6 +61,7 @@ class TestReport(SQLModel, table=True):
     # Details
     longrepr: Optional[str] = None  # Exception/failure details
     sections: list = Field(default_factory=list, sa_column=Column(JSON))  # Captured output
+    wasxfail: Optional[str] = None  # For xfail(run=False) tests
 
     # Relationship
     session: Session = Relationship(back_populates="test_reports")

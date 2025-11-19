@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Test History - {{ nodeid }} - pytest-webreportlog{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="text-sm">
+        <ol class="flex items-center space-x-2">
+            <li>
+                <a href="/" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">
+                    Sessions
+                </a>
+            </li>
+            <li class="text-gray-500 dark:text-gray-400">/</li>
+            <li class="text-gray-700 dark:text-gray-300">History</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Test History</h1>
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+            <p class="font-mono">{{ nodeid }}</p>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded p-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Total Runs</div>
+            <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ total_runs }}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded p-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Pass Rate</div>
+            <div class="text-lg font-semibold text-green-600 dark:text-green-400">
+                {{ "%.1f"|format(pass_rate) }}%
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ passed_runs }} / {{ total_runs }} passed</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded p-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Avg Total Duration</div>
+            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ "%.3f"|format(avg_durations.total) }}s
+            </div>
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+        <!-- Table Header -->
+        <div class="px-6 py-2 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex items-center space-x-3">
+            <div class="h-5 w-5 flex-shrink-0"></div> <!-- Spacer for expand arrow -->
+            <div class="w-14 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase text-center">Result</div>
+            <div class="w-20 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Session</div>
+            <div class="flex-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</div>
+            <div class="w-16 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase text-right">Setup</div>
+            <div class="w-16 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase text-right">Call</div>
+            <div class="w-20 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase text-right">Teardown</div>
+            <div class="w-16 flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase text-right">Total</div>
+        </div>
+
+        <div class="divide-y divide-gray-100 dark:divide-gray-700">
+            {% for entry in history_entries %}
+            <details class="group even:bg-gray-50 dark:even:bg-gray-900/30">
+                <summary class="px-6 py-0 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3">
+                    <svg class="h-5 w-5 flex-shrink-0 text-gray-400 dark:text-gray-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+
+                    <!-- Result -->
+                    <div class="w-14 flex-shrink-0 flex justify-center">
+                        {% if entry.result_label == 'PASS' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300">
+                            PASS
+                        </span>
+                        {% elif entry.result_label == 'FAIL' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300">
+                            FAIL
+                        </span>
+                        {% elif entry.result_label == 'SKIP' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300">
+                            SKIP
+                        </span>
+                        {% elif entry.result_label == 'XFAIL' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300">
+                            XFAIL
+                        </span>
+                        {% elif entry.result_label == 'XPASS' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300">
+                            XPASS
+                        </span>
+                        {% elif entry.result_label == 'ERROR' %}
+                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300">
+                            ERROR
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Session -->
+                    <div class="w-20 flex-shrink-0 text-sm font-medium">
+                        <a href="/sessions/{{ entry.session.id }}"
+                           onclick="event.stopPropagation();"
+                           class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">
+                            #{{ entry.session.id }}
+                        </a>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="flex-1 text-xs text-gray-500 dark:text-gray-400">
+                        {{ entry.session.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+
+                    <!-- Setup Duration -->
+                    <div class="w-16 flex-shrink-0 text-sm text-gray-700 dark:text-gray-300 text-right">
+                        {{ "%.3f"|format(entry.setup_duration) }}s
+                    </div>
+
+                    <!-- Call Duration -->
+                    <div class="w-16 flex-shrink-0 text-sm text-gray-700 dark:text-gray-300 text-right">
+                        {{ "%.3f"|format(entry.call_duration) }}s
+                    </div>
+
+                    <!-- Teardown Duration -->
+                    <div class="w-20 flex-shrink-0 text-sm text-gray-700 dark:text-gray-300 text-right">
+                        {{ "%.3f"|format(entry.teardown_duration) }}s
+                    </div>
+
+                    <!-- Total Duration -->
+                    <div class="w-16 flex-shrink-0 text-sm font-semibold text-gray-900 dark:text-white text-right">
+                        {{ "%.3f"|format(entry.total_duration) }}s
+                    </div>
+                </summary>
+
+                <div class="pl-14 pr-6 py-1 bg-gray-50 dark:bg-gray-700/50">
+                    {% if not entry.has_error or (entry.setup_report and entry.call_report and entry.teardown_report) %}
+                        <!-- Show individual phase subsections -->
+                        <div class="space-y-0">
+                        {% for phase_name, phase_report in [('setup', entry.setup_report), ('call', entry.call_report), ('teardown', entry.teardown_report)] %}
+                            {% if phase_report %}
+                                {% if phase_report.longrepr or phase_report.sections %}
+                                <!-- Phase with content - make it collapsible -->
+                                <details class="phase-details group/phase bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 {% if not loop.first %}-mt-px{% endif %}">
+                                    <summary class="px-3 py-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center">
+                                        <div class="flex items-center space-x-2">
+                                            <svg class="h-4 w-4 text-gray-400 dark:text-gray-500 group-open/phase:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                            </svg>
+                                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ phase_name }}</span>
+                                        </div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "%.3f"|format(phase_report.duration) }}s</span>
+                                    </summary>
+
+                                    <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600 space-y-2">
+                                        <!-- Show traceback if failure/error -->
+                                        {% if phase_report.longrepr %}
+                                        <div>
+                                            <h5 class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Traceback</h5>
+                                            <pre class="text-xs bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto font-mono text-gray-900 dark:text-gray-300">{{ phase_report.longrepr }}</pre>
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Show captured output -->
+                                        {% if phase_report.sections %}
+                                            {% for section_name, section_content in phase_report.sections %}
+                                            <div class="bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto">
+                                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{{ section_name }}</p>
+                                                <pre class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre font-mono">{{ section_content|strip_ansi }}</pre>
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                </details>
+                                {% else %}
+                                <!-- Phase without content - just show the row -->
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 {% if not loop.first %}-mt-px{% endif %}">
+                                    <div class="px-3 py-0 flex justify-between items-center">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ phase_name }}</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "%.3f"|format(phase_report.duration) }}s</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        </div>
+                    {% else %}
+                        <!-- For phase errors, show single error message -->
+                        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 p-3">
+                            <p class="text-sm font-medium text-red-600 dark:text-red-400 mb-2">Test Error</p>
+                            {% if entry.has_error %}
+                                <p class="text-xs text-gray-600 dark:text-gray-400">This test encountered an error during execution.</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

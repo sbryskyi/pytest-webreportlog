@@ -57,6 +57,7 @@ def api_client(web_server):
     class APIClient:
         def __init__(self, base_url):
             self.base_url = base_url
+            self.session = requests.Session()  # Add session for persistent connections
 
         def upload_jsonl(self, content: str, filename: str = "report.jsonl"):
             """Upload JSONL content."""

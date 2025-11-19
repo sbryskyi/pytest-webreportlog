@@ -37,11 +37,45 @@ A FastAPI-based web service for viewing and managing pytest test session reports
 
 ### Features
 
-1. **Upload JSONL Reports**: Upload pytest-reportlog JSONL files via web UI
-2. **Session List**: View all test sessions with summary statistics
-3. **Detailed View**: Drill down into individual test results by phase (setup/call/teardown)
-4. **REST API**: Programmatic access to session data
-5. **Phase Isolation**: View stdout/logs/errors for each test phase separately
+#### Core Features
+1. **Upload JSONL Reports**: Upload pytest-reportlog JSONL files via web UI or API
+2. **Session Management**:
+   - View all test sessions with summary statistics
+   - Delete sessions and associated test reports
+   - Filter and search capabilities
+3. **Detailed Test View**:
+   - Drill down into individual test results by phase (setup/call/teardown)
+   - Expandable/collapsible sections for each test
+   - Phase-specific durations and output
+4. **Phase Isolation**: View stdout/logs/errors for each test phase separately with ANSI color stripping
+5. **Dark Mode**: Toggle between light and dark themes with persistent preference
+
+#### History & Analytics
+6. **Test History Overview**:
+   - Aggregated statistics for all tests across sessions
+   - Pass rate tracking
+   - Average duration metrics
+   - Latest result status
+   - Sortable by test name, runs, pass rate, duration, or last run
+7. **Individual Test History**:
+   - View complete history for specific tests
+   - Track test stability over time
+   - Session-by-session breakdown with phase durations
+   - Direct links to source sessions
+
+#### Real-time Features
+8. **Streaming API**:
+   - Real-time test results via Server-Sent Events (SSE)
+   - Live session updates during test execution
+   - Automatic UI refresh for in-progress sessions
+   - Post test events directly to running sessions
+
+#### REST API
+9. **Comprehensive REST API**:
+   - Session CRUD operations
+   - Programmatic report upload
+   - Streaming event endpoints
+   - JSON responses for all data
 
 ### Quick Start
 
@@ -80,13 +114,86 @@ The `server.sh` script provides simple server management:
 
 Server logs are written to `server.log`.
 
+### Database Configuration
+
+The server uses SQLite for data persistence. By default, it creates/uses `data/sessions.db`.
+
+**Database persistence**: Data persists between server restarts - sessions and test reports are not lost.
+
+**Custom database**: Use the `DATABASE_URL` environment variable to specify a different database:
+
+```bash
+# Use a custom database file
+DATABASE_URL=sqlite:///data/myproject.db uv run uvicorn src.app.main:app
+
+# Or with server.sh
+DATABASE_URL=sqlite:///data/myproject.db ./server.sh start
+```
+
+**Multiple databases**: Run separate instances with different databases for different projects:
+
+```bash
+# Project A on port 8000
+DATABASE_URL=sqlite:///data/project_a.db uv run uvicorn src.app.main:app --port 8000
+
+# Project B on port 8001
+DATABASE_URL=sqlite:///data/project_b.db uv run uvicorn src.app.main:app --port 8001
+```
+
 ### API Endpoints
 
+#### Web UI
 - `GET /` - Web UI home page (list of sessions)
 - `GET /sessions/{id}` - Session detail page
-- `POST /upload` - Upload JSONL file
+- `GET /history` - Test history overview page
+- `GET /history/{nodeid}` - Individual test history page
+
+#### Session Management
 - `GET /api/sessions` - List all sessions (JSON)
 - `GET /api/sessions/{id}` - Get session details (JSON)
+- `DELETE /api/sessions/{id}` - Delete a session and all its test reports
+
+#### Upload
+- `POST /upload` - Upload JSONL file via web form or API
+
+#### Streaming (Real-time)
+- `POST /api/stream/event` - Post individual test events as they happen
+  - Accepts JSONL lines (text/plain) or JSON objects
+  - Use `X-Session-ID` header to identify session
+  - Creates/updates session in real-time
+- `GET /api/stream/{session_id}` - Subscribe to real-time session updates via Server-Sent Events (SSE)
+  - Returns `text/event-stream`
+  - Streams live updates during test execution
+  - Can subscribe before session is created
+
+**Example: Streaming test results in real-time**
+
+```bash
+# Terminal 1: Subscribe to session updates (session_id=1)
+curl -N http://localhost:8000/api/stream/1
+
+# Terminal 2: Post test events as they happen
+# Generate a unique session UUID
+SESSION_UUID=$(uuidgen)
+
+# Post SessionStart event
+curl -X POST http://localhost:8000/api/stream/event \
+  -H "X-Session-ID: $SESSION_UUID" \
+  -H "Content-Type: text/plain" \
+  -d '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}'
+
+# Post TestReport events
+curl -X POST http://localhost:8000/api/stream/event \
+  -H "X-Session-ID: $SESSION_UUID" \
+  -H "Content-Type: text/plain" \
+  -d '{"nodeid": "test_example.py::test_pass", "outcome": "passed", "when": "call", "duration": 0.001, "$report_type": "TestReport"}'
+
+# Post SessionFinish event
+curl -X POST http://localhost:8000/api/stream/event \
+  -H "X-Session-ID: $SESSION_UUID" \
+  -H "Content-Type: text/plain" \
+  -d '{"exitstatus": 0, "$report_type": "SessionFinish"}'
+```
 
 ### Database
 

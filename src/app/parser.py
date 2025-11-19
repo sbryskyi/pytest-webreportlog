@@ -22,6 +22,10 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
     # Track test outcomes by nodeid to avoid double-counting
     test_outcomes = {}  # nodeid -> {call_outcome, has_setup_error, has_teardown_error, has_xfail_marker}
 
+    # Track timing for overall session duration
+    min_start = None
+    max_stop = None
+
     for line in lines:
         if not line.strip():
             continue
@@ -50,6 +54,9 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
             longrepr_formatted = format_longrepr(longrepr_raw)
 
             # Create test report
+            start_time = record.get("start")
+            stop_time = record.get("stop")
+
             test_report = TestReport(
                 session=session,
                 nodeid=nodeid,
@@ -58,11 +65,20 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
                 when=when,
                 outcome=outcome,
                 duration=record.get("duration", 0.0),
-                start=record.get("start"),
-                stop=record.get("stop"),
+                start=start_time,
+                stop=stop_time,
                 longrepr=longrepr_formatted,
                 sections=record.get("sections", []),
+                wasxfail=record.get("wasxfail"),  # For xfail(run=False) tests
             )
+
+            # Track min/max timestamps for session duration
+            if start_time is not None:
+                if min_start is None or start_time < min_start:
+                    min_start = start_time
+            if stop_time is not None:
+                if max_stop is None or stop_time > max_stop:
+                    max_stop = stop_time
 
             # Track outcomes by test for summary statistics
             if nodeid not in test_outcomes:
@@ -71,12 +87,20 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
                     "has_setup_error": False,
                     "has_teardown_error": False,
                     "has_xfail_marker": "xfail" in keywords,
+                    "has_wasxfail": False,  # Track if test has wasxfail field (for xfail(run=False))
+                    "setup_skipped": False,  # Track if test was skipped in setup phase
                 }
 
             if when == "call":
                 test_outcomes[nodeid]["call_outcome"] = outcome
-            elif when == "setup" and outcome == "failed":
-                test_outcomes[nodeid]["has_setup_error"] = True
+            elif when == "setup":
+                if outcome == "failed":
+                    test_outcomes[nodeid]["has_setup_error"] = True
+                elif outcome == "skipped":
+                    test_outcomes[nodeid]["setup_skipped"] = True
+                # Check for wasxfail in setup phase (for xfail(run=False) tests)
+                if "wasxfail" in record:
+                    test_outcomes[nodeid]["has_wasxfail"] = True
             elif when == "teardown" and outcome == "failed":
                 test_outcomes[nodeid]["has_teardown_error"] = True
 
@@ -95,6 +119,8 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
         has_setup_error = test_data["has_setup_error"]
         has_teardown_error = test_data["has_teardown_error"]
         has_xfail_marker = test_data["has_xfail_marker"]
+        has_wasxfail = test_data["has_wasxfail"]
+        setup_skipped = test_data["setup_skipped"]
 
         # Count based on call phase outcome and xfail marker
         if has_xfail_marker:
@@ -105,6 +131,12 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
             elif call_outcome == "passed":
                 # Expected to fail but passed = xpassed
                 xpassed += 1
+            elif call_outcome == "failed":
+                # Strict xfail that passed (pytest reports as failed with [XPASS(strict)])
+                failed += 1
+            elif call_outcome is None and has_wasxfail:
+                # xfail(run=False) - test was not run but marked as xfail
+                xfailed += 1
         else:
             # Regular tests without xfail marker
             if call_outcome == "passed":
@@ -112,6 +144,9 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
             elif call_outcome == "failed":
                 failed += 1
             elif call_outcome == "skipped":
+                skipped += 1
+            elif call_outcome is None and setup_skipped:
+                # Test was skipped in setup phase (no call phase)
                 skipped += 1
 
         # Count setup/teardown errors separately
@@ -127,6 +162,10 @@ def parse_jsonl_report(lines: list[str], db: Session) -> TestSession:
     session.xfailed = xfailed
     session.xpassed = xpassed
     session.errors = errors
+
+    # Calculate overall session duration from timestamps
+    if min_start is not None and max_stop is not None:
+        session.duration = max_stop - min_start
 
     # Save session
     db.add(session)

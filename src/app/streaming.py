@@ -44,7 +44,11 @@ def process_event(event_line: str, session_id: Optional[int], db: Session) -> tu
             db.commit()
             db.refresh(session)
             # Initialize tracking for this session
-            active_sessions[session.id] = {}
+            active_sessions[session.id] = {
+                "test_outcomes": {},
+                "min_start": None,
+                "max_stop": None,
+            }
 
         return session, "session_start"
 
@@ -87,6 +91,10 @@ def process_event(event_line: str, session_id: Optional[int], db: Session) -> tu
         longrepr_raw = record.get("longrepr")
         longrepr_formatted = format_longrepr(longrepr_raw)
 
+        # Get timestamps
+        start_time = record.get("start")
+        stop_time = record.get("stop")
+
         # Create test report
         test_report = TestReport(
             session=session,
@@ -96,8 +104,8 @@ def process_event(event_line: str, session_id: Optional[int], db: Session) -> tu
             when=when,
             outcome=outcome,
             duration=record.get("duration", 0.0),
-            start=record.get("start"),
-            stop=record.get("stop"),
+            start=start_time,
+            stop=stop_time,
             longrepr=longrepr_formatted,
             sections=record.get("sections", []),
         )
@@ -106,9 +114,22 @@ def process_event(event_line: str, session_id: Optional[int], db: Session) -> tu
 
         # Initialize session tracking if not exists
         if session.id not in active_sessions:
-            active_sessions[session.id] = {}
+            active_sessions[session.id] = {
+                "test_outcomes": {},
+                "min_start": None,
+                "max_stop": None,
+            }
 
-        test_outcomes = active_sessions[session.id]
+        session_data = active_sessions[session.id]
+        test_outcomes = session_data["test_outcomes"]
+
+        # Update min/max timestamps for session duration
+        if start_time is not None:
+            if session_data["min_start"] is None or start_time < session_data["min_start"]:
+                session_data["min_start"] = start_time
+        if stop_time is not None:
+            if session_data["max_stop"] is None or stop_time > session_data["max_stop"]:
+                session_data["max_stop"] = stop_time
 
         # Track outcomes by test for summary statistics
         if nodeid not in test_outcomes:
@@ -126,8 +147,8 @@ def process_event(event_line: str, session_id: Optional[int], db: Session) -> tu
         elif when == "teardown" and outcome == "failed":
             test_outcomes[nodeid]["has_teardown_error"] = True
 
-        # Recalculate summary statistics
-        _update_session_stats(session, test_outcomes)
+        # Recalculate summary statistics and duration
+        _update_session_stats(session, test_outcomes, session_data["min_start"], session_data["max_stop"])
         session.updated_at = datetime.utcnow()
 
         db.add(session)
@@ -136,12 +157,26 @@ def process_event(event_line: str, session_id: Optional[int], db: Session) -> tu
 
         return session, f"test_report_{when}"
 
+    elif report_type == "CollectReport":
+        # Collection reports can be ignored - just return the current session
+        if not session_id:
+            # If we don't have a session yet, we'll need to create a placeholder
+            # or wait for SessionStart. For now, raise an error.
+            raise ValueError("CollectReport without session_id")
+
+        session = db.get(TestSession, session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        return session, "collect_report"
+
     else:
         raise ValueError(f"Unknown report type: {report_type}")
 
 
-def _update_session_stats(session: TestSession, test_outcomes: Dict[str, Any]):
-    """Update session summary statistics based on test outcomes."""
+def _update_session_stats(session: TestSession, test_outcomes: Dict[str, Any],
+                          min_start: Optional[float] = None, max_stop: Optional[float] = None):
+    """Update session summary statistics based on test outcomes and calculate duration."""
     passed = 0
     failed = 0
     skipped = 0
@@ -182,3 +217,7 @@ def _update_session_stats(session: TestSession, test_outcomes: Dict[str, Any]):
     session.xfailed = xfailed
     session.xpassed = xpassed
     session.errors = errors
+
+    # Calculate overall session duration from timestamps
+    if min_start is not None and max_stop is not None:
+        session.duration = max_stop - min_start

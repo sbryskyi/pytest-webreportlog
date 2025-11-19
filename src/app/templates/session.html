@@ -16,14 +16,40 @@
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
         <div class="flex justify-between items-start">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Session #{{ session.id }}</h1>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Session #{{ session.id }}</h1>
+                    {% if session.status == 'in_progress' %}
+                    <span id="live-indicator" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
+                        <svg class="animate-pulse mr-1.5 h-3 w-3 fill-current" viewBox="0 0 8 8">
+                            <circle cx="4" cy="4" r="3" />
+                        </svg>
+                        Live
+                    </span>
+                    {% elif session.status == 'interrupted' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300">
+                        Interrupted
+                    </span>
+                    {% endif %}
+                </div>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {{ session.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
                 </p>
             </div>
-            <div class="text-right">
+            <div class="text-right space-y-2">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Pytest {{ session.pytest_version }}</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Exit status: {{ session.exitstatus }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {% if session.duration %}
+                        Duration: <span class="font-semibold">{{ "%.3f" | format(session.duration) }}s</span>
+                    {% endif %}
+                </p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Exit status: <span id="exit-status">{{ session.exitstatus if session.exitstatus is not none else 'N/A' }}</span></p>
+                <button id="delete-session-btn"
+                        class="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-700 rounded-md text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Delete Session
+                </button>
             </div>
         </div>
 
@@ -115,134 +141,11 @@
         </div>
 
         {% if test_entries %}
-        <div id="test-results-container" class="divide-y divide-gray-100 dark:divide-gray-700">
-            {% for entry in test_entries %}
-            <details class="group test-entry" data-outcome="{{ entry.outcome }}" data-nodeid="{{ entry.nodeid }}" data-duration="{{ entry.duration }}">
-                <summary class="px-6 py-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3">
-                    <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                    <div class="w-14 flex items-center">
-                        {% if entry.result_label == 'PASS' %}
-                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300">
-                            PASS
-                        </span>
-                        {% elif entry.result_label == 'FAIL' %}
-                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300">
-                            FAIL
-                        </span>
-                        {% elif entry.result_label == 'SKIP' %}
-                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300">
-                            SKIP
-                        </span>
-                        {% elif entry.result_label == 'XFAIL' %}
-                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300">
-                            XFAIL
-                        </span>
-                        {% elif entry.result_label == 'XPASS' %}
-                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300">
-                            XPASS
-                        </span>
-                        {% elif entry.result_label == 'ERROR' %}
-                        <span class="inline-flex items-center justify-center w-14 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300">
-                            ERROR
-                        </span>
-                        {% endif %}
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ entry.nodeid }}</p>
-                    </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ "%.3f"|format(entry.duration) }}s
-                    </div>
-                </summary>
-
-                <div class="pl-14 pr-6 py-1 bg-gray-50 dark:bg-gray-700/50">
-                    <!-- Location info -->
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        {{ entry.location[0] }}::{{ entry.location[2] }} (line {{ entry.location[1] }})
-                    </div>
-
-                    {% if not entry.is_phase_error %}
-                        <!-- Show individual phase subsections -->
-                        <div class="space-y-0">
-                        {% for phase_name, phase_report in [('setup', entry.setup_report), ('call', entry.call_report), ('teardown', entry.teardown_report)] %}
-                            {% if phase_report %}
-                                {% if phase_report.longrepr or phase_report.sections %}
-                                <!-- Phase with content - make it collapsible -->
-                                <details class="phase-details group/phase bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 {% if not loop.first %}-mt-px{% endif %}">
-                                    <summary class="px-3 py-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center">
-                                        <div class="flex items-center space-x-2">
-                                            <svg class="h-4 w-4 text-gray-400 dark:text-gray-500 group-open/phase:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                            </svg>
-                                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ phase_name }}</span>
-                                        </div>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "%.3f"|format(phase_report.duration) }}s</span>
-                                    </summary>
-
-                                    <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-600 space-y-2">
-                                        <!-- Show traceback if failure/error -->
-                                        {% if phase_report.longrepr %}
-                                        <div>
-                                            <h5 class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Traceback</h5>
-                                            <pre class="text-xs bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto font-mono text-gray-900 dark:text-gray-300">{{ phase_report.longrepr }}</pre>
-                                        </div>
-                                        {% endif %}
-
-                                        <!-- Show captured output -->
-                                        {% if phase_report.sections %}
-                                            {% for section_name, section_content in phase_report.sections %}
-                                            <div class="bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600">
-                                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{{ section_name }}</p>
-                                                <pre class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">{{ section_content|strip_ansi }}</pre>
-                                            </div>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </div>
-                                </details>
-                                {% else %}
-                                <!-- Phase without content - just show the row -->
-                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 {% if not loop.first %}-mt-px{% endif %}">
-                                    <div class="px-3 py-0 flex justify-between items-center">
-                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ phase_name }}</span>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "%.3f"|format(phase_report.duration) }}s</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                        </div>
-                    {% else %}
-                        <!-- For phase errors, show single report -->
-                        {% set report = entry.report %}
-
-                        <!-- Show traceback if failure/error -->
-                        {% if report.longrepr %}
-                        <div>
-                            <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Traceback</h4>
-                            <pre class="text-xs bg-white dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-600 overflow-x-auto font-mono text-gray-900 dark:text-gray-300">{{ report.longrepr }}</pre>
-                        </div>
-                        {% endif %}
-
-                        <!-- Show captured output -->
-                        {% if report.sections %}
-                            {% for section_name, section_content in report.sections %}
-                            <div class="bg-white p-2 rounded border border-gray-200">
-                                <p class="text-xs font-semibold text-gray-600 mb-1">{{ section_name }}</p>
-                                <pre class="text-xs text-gray-700 whitespace-pre-wrap font-mono">{{ section_content|strip_ansi }}</pre>
-                            </div>
-                            {% endfor %}
-                        {% endif %}
-
-                        <!-- Show message if no output -->
-                        {% if not report.longrepr and not report.sections %}
-                        <p class="text-xs text-gray-500 italic">No output captured.</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </details>
-            {% endfor %}
+        <div id="test-results-container" class="divide-y divide-gray-100 dark:divide-gray-700"
+             hx-get="/api/sessions/{{ session.id }}/test-entries"
+             hx-trigger="updateTests"
+             hx-swap="innerHTML">
+            {% include "_test_entry.html" %}
         </div>
         {% else %}
         <div class="px-6 py-12 text-center text-gray-500">
@@ -253,6 +156,27 @@
 </div>
 
 <script>
+// Delete session handler
+document.getElementById('delete-session-btn').addEventListener('click', function() {
+    if (confirm('Are you sure you want to delete this session? This action cannot be undone and will delete all associated test reports.')) {
+        fetch('/api/sessions/{{ session.id }}', {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Redirect to sessions list page
+                window.location.href = '/';
+            } else {
+                alert('Failed to delete session: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            alert('Error deleting session: ' + error.message);
+        });
+    }
+});
+
 // Initialize all filters as active
 const filterState = {
     'all': true,
@@ -478,6 +402,96 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set initial arrow state
     updateArrowState();
+
+    // Re-apply filters after HTMX updates test entries
+    document.getElementById('test-results-container').addEventListener('htmx:afterSwap', function() {
+        applyFilters();
+    });
+
+    // Connect to SSE for live updates if session is in progress
+    {% if session.status == 'in_progress' %}
+    connectToLiveUpdates();
+    {% endif %}
 });
+
+// Live updates via Server-Sent Events
+function connectToLiveUpdates() {
+    const sessionId = {{ session.id }};
+    const eventSource = new EventSource(`/api/stream/${sessionId}`);
+
+    console.log('Connected to live updates for session', sessionId);
+
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log('Received event:', data);
+
+        if (data.type === 'initial') {
+            console.log('Initial connection established');
+        } else if (data.type === 'session_finish') {
+            console.log('Session finished, reloading page...');
+            // Update live indicator
+            const liveIndicator = document.getElementById('live-indicator');
+            if (liveIndicator) {
+                liveIndicator.innerHTML = '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">Completed</span>';
+            }
+
+            // Close connection
+            eventSource.close();
+
+            // Reload page to show final results
+            setTimeout(() => window.location.reload(), 1000);
+        } else if (data.session) {
+            // Update statistics in real-time
+            updateStatistics(data.session);
+        }
+    };
+
+    eventSource.onerror = function(error) {
+        console.error('SSE connection error:', error);
+        eventSource.close();
+    };
+}
+
+function updateStatistics(sessionData) {
+    // Update total tests
+    const totalSpan = document.querySelector('#card-all span.text-lg');
+    if (totalSpan) totalSpan.textContent = sessionData.total_tests;
+
+    // Update passed
+    const passedSpan = document.querySelector('#card-passed span.text-lg');
+    if (passedSpan) passedSpan.textContent = sessionData.passed;
+
+    // Update failed
+    const failedSpan = document.querySelector('#card-failed span.text-lg');
+    if (failedSpan) failedSpan.textContent = sessionData.failed;
+
+    // Update skipped
+    const skippedSpan = document.querySelector('#card-skipped span.text-lg');
+    if (skippedSpan) skippedSpan.textContent = sessionData.skipped;
+
+    // Update xfailed
+    const xfailedSpan = document.querySelector('#card-xfailed span.text-lg');
+    if (xfailedSpan) xfailedSpan.textContent = sessionData.xfailed;
+
+    // Update xpassed
+    const xpassedSpan = document.querySelector('#card-xpassed span.text-lg');
+    if (xpassedSpan) xpassedSpan.textContent = sessionData.xpassed;
+
+    // Update errors
+    const errorsSpan = document.querySelector('#card-error span.text-lg');
+    if (errorsSpan) errorsSpan.textContent = sessionData.errors;
+
+    // Update exit status if available
+    if (sessionData.exitstatus !== undefined && sessionData.exitstatus !== null) {
+        const exitStatusSpan = document.getElementById('exit-status');
+        if (exitStatusSpan) exitStatusSpan.textContent = sessionData.exitstatus;
+    }
+
+    // Trigger HTMX to fetch and update test entries
+    const container = document.getElementById('test-results-container');
+    if (container) {
+        htmx.trigger(container, 'updateTests');
+    }
+}
 </script>
 {% endblock %}

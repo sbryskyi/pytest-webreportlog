@@ -16,7 +16,17 @@ def format_longrepr(longrepr) -> str | None:
     if isinstance(longrepr, str):
         return longrepr
 
+    # Handle list format (simple skip reasons, etc.)
+    if isinstance(longrepr, list):
+        # List format is typically [reason_str, file, lineno] for skips
+        if longrepr and isinstance(longrepr[0], str):
+            return longrepr[0]
+        return str(longrepr)
+
     # longrepr is a dict with reprtraceback structure
+    if not isinstance(longrepr, dict):
+        return str(longrepr)
+
     lines = []
 
     # Extract traceback entries
