@@ -1,13 +1,17 @@
 """Tests for streaming event processing."""
-import pytest
 import json
-from sqlmodel import Session, create_engine, SQLModel
-from src.app.streaming import process_event, _update_session_stats, active_sessions
-from src.app.models import Session as TestSession, TestReport, SessionStatus
+from collections.abc import Generator
+
+import pytest
+from sqlmodel import Session, SQLModel, create_engine
+
+from src.app.models import Session as TestSession
+from src.app.models import SessionStatus, TestReport
+from src.app.streaming import _update_session_stats, active_sessions, process_event
 
 
 @pytest.fixture
-def test_db():
+def test_db() -> Generator[Session, None, None]:
     """Create an in-memory test database."""
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
@@ -16,7 +20,7 @@ def test_db():
 
 
 @pytest.fixture(autouse=True)
-def clear_active_sessions():
+def clear_active_sessions() -> Generator[None, None, None]:
     """Clear active sessions cache before each test."""
     active_sessions.clear()
     yield
@@ -25,7 +29,8 @@ def clear_active_sessions():
 
 # SessionStart event tests
 
-def test_process_session_start_creates_new_session(test_db):
+
+def test_process_session_start_creates_new_session(test_db: Session) -> None:
     """Test that SessionStart creates a new session."""
     event = '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}'
 
@@ -39,7 +44,7 @@ def test_process_session_start_creates_new_session(test_db):
     assert session.id in active_sessions
 
 
-def test_process_session_start_with_existing_session_id(test_db):
+def test_process_session_start_with_existing_session_id(test_db: Session) -> None:
     """Test SessionStart with existing session ID."""
     # Create session first
     existing_session = TestSession(pytest_version="8.0.0", status=SessionStatus.IN_PROGRESS.value)
@@ -55,7 +60,7 @@ def test_process_session_start_with_existing_session_id(test_db):
     assert event_type == "session_start"
 
 
-def test_process_session_start_with_nonexistent_session_id(test_db):
+def test_process_session_start_with_nonexistent_session_id(test_db: Session) -> None:
     """Test SessionStart with non-existent session ID raises error."""
     event = '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}'
 
@@ -65,7 +70,8 @@ def test_process_session_start_with_nonexistent_session_id(test_db):
 
 # SessionFinish event tests
 
-def test_process_session_finish(test_db):
+
+def test_process_session_finish(test_db: Session) -> None:
     """Test SessionFinish event updates session."""
     # Create session first
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
@@ -86,7 +92,7 @@ def test_process_session_finish(test_db):
     assert session.id not in active_sessions  # Should be cleaned up
 
 
-def test_process_session_finish_without_session_id(test_db):
+def test_process_session_finish_without_session_id(test_db: Session) -> None:
     """Test SessionFinish without session_id raises error."""
     event = '{"exitstatus": 0, "$report_type": "SessionFinish"}'
 
@@ -94,7 +100,7 @@ def test_process_session_finish_without_session_id(test_db):
         process_event(event, None, test_db)
 
 
-def test_process_session_finish_with_nonexistent_session(test_db):
+def test_process_session_finish_with_nonexistent_session(test_db: Session) -> None:
     """Test SessionFinish with non-existent session raises error."""
     event = '{"exitstatus": 0, "$report_type": "SessionFinish"}'
 
@@ -104,7 +110,8 @@ def test_process_session_finish_with_nonexistent_session(test_db):
 
 # TestReport event tests
 
-def test_process_test_report_creates_report(test_db):
+
+def test_process_test_report_creates_report(test_db: Session) -> None:
     """Test TestReport event creates test report."""
     # Create session first
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
@@ -133,13 +140,15 @@ def test_process_test_report_creates_report(test_db):
     assert result_session.passed == 1
 
     # Check that test report was created
-    reports = test_db.query(TestReport).filter(TestReport.session_id == session.id).all()
+    from sqlmodel import select
+    statement = select(TestReport).where(TestReport.session_id == session.id)
+    reports = test_db.exec(statement).all()
     assert len(reports) == 1
     assert reports[0].nodeid == "test.py::test_pass"
     assert reports[0].outcome == "passed"
 
 
-def test_process_test_report_without_session_id(test_db):
+def test_process_test_report_without_session_id(test_db: Session) -> None:
     """Test TestReport without session_id raises error."""
     event = json.dumps({
         "nodeid": "test.py::test_pass",
@@ -152,7 +161,7 @@ def test_process_test_report_without_session_id(test_db):
         process_event(event, None, test_db)
 
 
-def test_process_test_report_with_nonexistent_session(test_db):
+def test_process_test_report_with_nonexistent_session(test_db: Session) -> None:
     """Test TestReport with non-existent session raises error."""
     event = json.dumps({
         "nodeid": "test.py::test_pass",
@@ -165,7 +174,7 @@ def test_process_test_report_with_nonexistent_session(test_db):
         process_event(event, 9999, test_db)
 
 
-def test_process_test_report_tracks_setup_error(test_db):
+def test_process_test_report_tracks_setup_error(test_db: Session) -> None:
     """Test TestReport tracks setup errors."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -192,7 +201,7 @@ def test_process_test_report_tracks_setup_error(test_db):
     assert result_session.total_tests == 1
 
 
-def test_process_test_report_tracks_teardown_error(test_db):
+def test_process_test_report_tracks_teardown_error(test_db: Session) -> None:
     """Test TestReport tracks teardown errors."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -236,7 +245,7 @@ def test_process_test_report_tracks_teardown_error(test_db):
     assert result_session.passed == 1  # Call phase still passed
 
 
-def test_process_test_report_tracks_xfail(test_db):
+def test_process_test_report_tracks_xfail(test_db: Session) -> None:
     """Test TestReport tracks xfail correctly."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -264,7 +273,7 @@ def test_process_test_report_tracks_xfail(test_db):
     assert result_session.skipped == 0
 
 
-def test_process_test_report_tracks_xpass(test_db):
+def test_process_test_report_tracks_xpass(test_db: Session) -> None:
     """Test TestReport tracks xpass correctly."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -291,7 +300,7 @@ def test_process_test_report_tracks_xpass(test_db):
     assert result_session.passed == 0
 
 
-def test_process_test_report_calculates_duration(test_db):
+def test_process_test_report_calculates_duration(test_db: Session) -> None:
     """Test TestReport calculates session duration from timestamps."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -334,7 +343,7 @@ def test_process_test_report_calculates_duration(test_db):
     assert result_session.duration == pytest.approx(0.010)  # 1000.010 - 1000.0
 
 
-def test_process_test_report_handles_multiple_phases(test_db):
+def test_process_test_report_handles_multiple_phases(test_db: Session) -> None:
     """Test TestReport handles setup, call, teardown phases."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -400,7 +409,8 @@ def test_process_test_report_handles_multiple_phases(test_db):
 
 # CollectReport event tests
 
-def test_process_collect_report(test_db):
+
+def test_process_collect_report(test_db: Session) -> None:
     """Test CollectReport event is handled."""
     session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
     test_db.add(session)
@@ -415,7 +425,7 @@ def test_process_collect_report(test_db):
     assert event_type == "collect_report"
 
 
-def test_process_collect_report_without_session_id(test_db):
+def test_process_collect_report_without_session_id(test_db: Session) -> None:
     """Test CollectReport without session_id raises error."""
     event = '{"nodeid": "test.py", "$report_type": "CollectReport"}'
 
@@ -425,19 +435,20 @@ def test_process_collect_report_without_session_id(test_db):
 
 # Edge cases and error handling
 
-def test_process_empty_event_line(test_db):
+
+def test_process_empty_event_line(test_db: Session) -> None:
     """Test processing empty event line raises error."""
     with pytest.raises(ValueError, match="Empty event line"):
         process_event("", None, test_db)
 
 
-def test_process_whitespace_event_line(test_db):
+def test_process_whitespace_event_line(test_db: Session) -> None:
     """Test processing whitespace-only event line raises error."""
     with pytest.raises(ValueError, match="Empty event line"):
         process_event("   \n  ", None, test_db)
 
 
-def test_process_unknown_report_type(test_db):
+def test_process_unknown_report_type(test_db: Session) -> None:
     """Test unknown report type raises error."""
     event = '{"$report_type": "UnknownType"}'
 
@@ -445,7 +456,7 @@ def test_process_unknown_report_type(test_db):
         process_event(event, None, test_db)
 
 
-def test_process_invalid_json(test_db):
+def test_process_invalid_json(test_db: Session) -> None:
     """Test invalid JSON raises error."""
     event = '{invalid json}'
 
@@ -455,7 +466,8 @@ def test_process_invalid_json(test_db):
 
 # _update_session_stats tests
 
-def test_update_session_stats_all_passed(test_db):
+
+def test_update_session_stats_all_passed(test_db: Session) -> None:
     """Test stats calculation with all passing tests."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)
@@ -475,7 +487,7 @@ def test_update_session_stats_all_passed(test_db):
     assert session.errors == 0
 
 
-def test_update_session_stats_mixed_outcomes(test_db):
+def test_update_session_stats_mixed_outcomes(test_db: Session) -> None:
     """Test stats calculation with mixed outcomes."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)
@@ -496,7 +508,7 @@ def test_update_session_stats_mixed_outcomes(test_db):
     assert session.errors == 0
 
 
-def test_update_session_stats_with_errors(test_db):
+def test_update_session_stats_with_errors(test_db: Session) -> None:
     """Test stats calculation with setup/teardown errors."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)
@@ -514,7 +526,7 @@ def test_update_session_stats_with_errors(test_db):
     assert session.passed == 1  # test2 call phase passed
 
 
-def test_update_session_stats_xfail_xpass(test_db):
+def test_update_session_stats_xfail_xpass(test_db: Session) -> None:
     """Test stats calculation with xfail and xpass."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)
@@ -534,7 +546,7 @@ def test_update_session_stats_xfail_xpass(test_db):
     assert session.skipped == 0
 
 
-def test_update_session_stats_duration_calculation(test_db):
+def test_update_session_stats_duration_calculation(test_db: Session) -> None:
     """Test duration calculation from timestamps."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)
@@ -547,7 +559,7 @@ def test_update_session_stats_duration_calculation(test_db):
     assert session.duration == pytest.approx(5.5)
 
 
-def test_update_session_stats_no_duration_without_timestamps(test_db):
+def test_update_session_stats_no_duration_without_timestamps(test_db: Session) -> None:
     """Test that duration is not set without timestamps."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)
@@ -560,7 +572,7 @@ def test_update_session_stats_no_duration_without_timestamps(test_db):
     assert session.duration is None
 
 
-def test_update_session_stats_partial_timestamps(test_db):
+def test_update_session_stats_partial_timestamps(test_db: Session) -> None:
     """Test duration calculation with partial timestamps."""
     session = TestSession(pytest_version="8.4.2")
     test_db.add(session)

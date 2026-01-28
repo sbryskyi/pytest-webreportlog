@@ -1,35 +1,36 @@
 """Tests for formatter module."""
-import pytest
+from typing import Any
+
 from src.app.formatter import format_longrepr
 
 
-def test_format_longrepr_none():
+def test_format_longrepr_none() -> None:
     """Test formatting None longrepr."""
     result = format_longrepr(None)
     assert result is None
 
 
-def test_format_longrepr_empty_string():
+def test_format_longrepr_empty_string() -> None:
     """Test formatting empty string."""
     result = format_longrepr("")
     assert result is None
 
 
-def test_format_longrepr_simple_string():
+def test_format_longrepr_simple_string() -> None:
     """Test formatting simple string longrepr."""
     longrepr = "AssertionError: test failed"
     result = format_longrepr(longrepr)
     assert result == "AssertionError: test failed"
 
 
-def test_format_longrepr_multiline_string():
+def test_format_longrepr_multiline_string() -> None:
     """Test formatting multiline string longrepr."""
     longrepr = "def test_fail():\n>   assert False\nE   AssertionError"
     result = format_longrepr(longrepr)
     assert result == longrepr
 
 
-def test_format_longrepr_dict_with_reprtraceback():
+def test_format_longrepr_dict_with_reprtraceback() -> None:
     """Test formatting dict with full reprtraceback structure."""
     longrepr = {
         "reprtraceback": {
@@ -59,7 +60,7 @@ def test_format_longrepr_dict_with_reprtraceback():
     assert "test_sample.py:6: AssertionError" in result
 
 
-def test_format_longrepr_dict_multiple_entries():
+def test_format_longrepr_dict_multiple_entries() -> None:
     """Test formatting dict with multiple traceback entries."""
     longrepr = {
         "reprtraceback": {
@@ -96,7 +97,7 @@ def test_format_longrepr_dict_multiple_entries():
     assert "test_sample.py:20: ValueError" in result
 
 
-def test_format_longrepr_dict_reprcrash_fallback():
+def test_format_longrepr_dict_reprcrash_fallback() -> None:
     """Test formatting dict with reprcrash only (no reprtraceback)."""
     longrepr = {
         "reprcrash": {
@@ -109,7 +110,7 @@ def test_format_longrepr_dict_reprcrash_fallback():
     assert result == "test_sample.py:15\nRuntimeError: Setup failed"
 
 
-def test_format_longrepr_dict_reprcrash_message_only():
+def test_format_longrepr_dict_reprcrash_message_only() -> None:
     """Test formatting dict with reprcrash message but no path/lineno."""
     longrepr = {
         "reprcrash": {
@@ -120,7 +121,7 @@ def test_format_longrepr_dict_reprcrash_message_only():
     assert result == "RuntimeError: Something went wrong"
 
 
-def test_format_longrepr_dict_no_lines():
+def test_format_longrepr_dict_no_lines() -> None:
     """Test formatting dict with reprtraceback but no lines."""
     longrepr = {
         "reprtraceback": {
@@ -147,7 +148,7 @@ def test_format_longrepr_dict_no_lines():
     assert "test_sample.py:5: Error" in result
 
 
-def test_format_longrepr_dict_incomplete_reprfileloc():
+def test_format_longrepr_dict_incomplete_reprfileloc() -> None:
     """Test formatting dict with incomplete reprfileloc."""
     longrepr = {
         "reprtraceback": {
@@ -169,7 +170,7 @@ def test_format_longrepr_dict_incomplete_reprfileloc():
     assert result == "test line"
 
 
-def test_format_longrepr_dict_non_reprentry_type():
+def test_format_longrepr_dict_non_reprentry_type() -> None:
     """Test formatting dict with non-ReprEntry type."""
     longrepr = {
         "reprtraceback": {
@@ -190,7 +191,7 @@ def test_format_longrepr_dict_non_reprentry_type():
     assert result == "Error occurred"
 
 
-def test_format_longrepr_dict_missing_data():
+def test_format_longrepr_dict_missing_data() -> None:
     """Test formatting dict with missing data field."""
     longrepr = {
         "reprtraceback": {
@@ -209,7 +210,7 @@ def test_format_longrepr_dict_missing_data():
     assert result == "Fallback message"
 
 
-def test_format_longrepr_dict_empty():
+def test_format_longrepr_dict_empty() -> None:
     """Test formatting empty dict."""
     longrepr = {}
     result = format_longrepr(longrepr)
@@ -217,7 +218,7 @@ def test_format_longrepr_dict_empty():
     assert result is None
 
 
-def test_format_longrepr_dict_empty_reprentries():
+def test_format_longrepr_dict_empty_reprentries() -> None:
     """Test formatting dict with empty reprentries list."""
     longrepr = {
         "reprtraceback": {
@@ -228,14 +229,14 @@ def test_format_longrepr_dict_empty_reprentries():
     assert result == str(longrepr)
 
 
-def test_format_longrepr_unicode_characters():
+def test_format_longrepr_unicode_characters() -> None:
     """Test formatting longrepr with unicode characters."""
     longrepr = "AssertionError: Expected '✓' but got '✗'"
     result = format_longrepr(longrepr)
     assert result == "AssertionError: Expected '✓' but got '✗'"
 
 
-def test_format_longrepr_dict_with_unicode():
+def test_format_longrepr_dict_with_unicode() -> None:
     """Test formatting dict with unicode in lines."""
     longrepr = {
         "reprtraceback": {
@@ -258,7 +259,7 @@ def test_format_longrepr_dict_with_unicode():
     assert "✗" in result
 
 
-def test_format_longrepr_real_pytest_structure():
+def test_format_longrepr_real_pytest_structure() -> None:
     """Test formatting with real pytest-reportlog structure."""
     longrepr = {
         "reprcrash": {
@@ -295,7 +296,7 @@ def test_format_longrepr_real_pytest_structure():
     assert "test_sample.py:6" in result
 
 
-def test_format_longrepr_setup_error_structure():
+def test_format_longrepr_setup_error_structure() -> None:
     """Test formatting setup error with fixture traceback."""
     longrepr = {
         "reprcrash": {
@@ -332,7 +333,7 @@ def test_format_longrepr_setup_error_structure():
     assert "test_sample.py:3: RuntimeError" in result
 
 
-def test_format_longrepr_preserves_formatting():
+def test_format_longrepr_preserves_formatting() -> None:
     """Test that formatting preserves code indentation and structure."""
     longrepr = {
         "reprtraceback": {

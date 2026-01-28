@@ -1,12 +1,17 @@
 """Tests comparing web server output with pytest-html reports."""
-import pytest
 import json
 import re
 import subprocess
 from pathlib import Path
 
+import pytest
 
-def run_pytest_and_upload(api_client, tmp_path, test_path: str):
+from .conftest import APIClient
+
+
+def run_pytest_and_upload(
+    api_client: APIClient, tmp_path: Path, test_path: str
+) -> tuple[int, str, Path]:
     """Helper to run pytest and upload results to server.
 
     Args:
@@ -21,14 +26,19 @@ def run_pytest_and_upload(api_client, tmp_path, test_path: str):
     html_path = tmp_path / "pytest.html"
 
     # Run pytest with both JSONL and HTML reports
-    subprocess.run([
-        "uv", "run", "pytest",
-        test_path,
-        f"--report-log={jsonl_path}",
-        f"--html={html_path}",
-        "--self-contained-html",
-        "-q"
-    ], cwd=Path.cwd())
+    subprocess.run(
+        [
+            "uv",
+            "run",
+            "pytest",
+            test_path,
+            f"--report-log={jsonl_path}",
+            f"--html={html_path}",
+            "--self-contained-html",
+            "-q",
+        ],
+        cwd=Path.cwd(),
+    )
 
     # Upload JSONL to our server
     with open(jsonl_path) as f:
@@ -65,7 +75,7 @@ def parse_pytest_html_data(html_content: str) -> dict:
         return {}
 
 
-def extract_test_results_from_pytest_html(html_content: str) -> dict:
+def extract_test_results_from_pytest_html(html_content: str) -> dict[str, str]:
     """Extract test results from pytest-html.
 
     Returns dict mapping test IDs to their outcomes.
@@ -73,7 +83,7 @@ def extract_test_results_from_pytest_html(html_content: str) -> dict:
     data = parse_pytest_html_data(html_content)
     tests = data.get("tests", {})
 
-    results = {}
+    results: dict[str, str] = {}
     for test_id, test_entries in tests.items():
         for entry in test_entries:
             result = entry.get("result", "")
@@ -83,12 +93,12 @@ def extract_test_results_from_pytest_html(html_content: str) -> dict:
     return results
 
 
-def extract_our_test_results(html_content: str) -> dict:
+def extract_our_test_results(html_content: str) -> dict[str, str]:
     """Extract test results from our web server HTML.
 
     Returns dict mapping test names to their result labels.
     """
-    results = {}
+    results: dict[str, str] = {}
 
     # Find all test entries with their result badges
     # Pattern: badge with PASS/FAIL/ERROR/SKIP followed by test name
@@ -101,7 +111,7 @@ def extract_our_test_results(html_content: str) -> dict:
     return results
 
 
-def count_results(results: dict) -> dict:
+def count_results(results: dict[str, str]) -> dict[str, int]:
     """Count result types from results dict."""
     counts = {"passed": 0, "failed": 0, "skipped": 0, "errors": 0}
 
@@ -121,9 +131,11 @@ def count_results(results: dict) -> dict:
 
 @pytest.mark.skipif(
     not (Path("test_sample") / "test_exceptions.py").exists(),
-    reason="Requires test_sample directory"
+    reason="Requires test_sample directory",
 )
-def test_compare_with_pytest_html_exceptions(api_client, tmp_path):
+def test_compare_with_pytest_html_exceptions(
+    api_client: APIClient, tmp_path: Path
+) -> None:
     """Compare our output with pytest-html for exception tests."""
     session_id, our_html, html_path = run_pytest_and_upload(
         api_client, tmp_path, "test_sample/test_exceptions.py"
@@ -149,9 +161,11 @@ def test_compare_with_pytest_html_exceptions(api_client, tmp_path):
 
 @pytest.mark.skipif(
     not (Path("test_sample") / "test_exceptions.py").exists(),
-    reason="Requires test_sample directory"
+    reason="Requires test_sample directory",
 )
-def test_compare_teardown_error_handling(api_client, tmp_path):
+def test_compare_teardown_error_handling(
+    api_client: APIClient, tmp_path: Path
+) -> None:
     """Verify we handle teardown errors same as pytest-html.
 
     When test passes but teardown fails:
@@ -159,7 +173,9 @@ def test_compare_teardown_error_handling(api_client, tmp_path):
     - We should show the same
     """
     session_id, our_html, _ = run_pytest_and_upload(
-        api_client, tmp_path, "test_sample/test_exceptions.py::test_with_teardown_exception"
+        api_client,
+        tmp_path,
+        "test_sample/test_exceptions.py::test_with_teardown_exception",
     )
 
     # Check we have both entries
@@ -175,25 +191,36 @@ def test_compare_teardown_error_handling(api_client, tmp_path):
 
 @pytest.mark.skipif(
     not (Path("test_sample") / "test_exceptions.py").exists(),
-    reason="Requires test_sample directory"
+    reason="Requires test_sample directory",
 )
-def test_session_statistics_match_pytest(api_client, tmp_path):
+def test_session_statistics_match_pytest(
+    api_client: APIClient, tmp_path: Path
+) -> None:
     """Verify session statistics match pytest's output."""
     jsonl_path = tmp_path / "report.jsonl"
 
     # Run pytest and capture output
-    result = subprocess.run([
-        "uv", "run", "pytest",
-        "test_sample/test_exceptions.py",
-        f"--report-log={jsonl_path}",
-        "-v"
-    ], capture_output=True, text=True, cwd=Path.cwd())
+    result = subprocess.run(
+        [
+            "uv",
+            "run",
+            "pytest",
+            "test_sample/test_exceptions.py",
+            f"--report-log={jsonl_path}",
+            "-v",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path.cwd(),
+    )
 
     # Parse pytest output for counts (Format: "2 failed, 1 passed, 3 errors")
-    pytest_summary = {}
-    for key, pattern in [("passed", r'(\d+) passed'),
-                         ("failed", r'(\d+) failed'),
-                         ("errors", r'(\d+) error')]:
+    pytest_summary: dict[str, int] = {}
+    for key, pattern in [
+        ("passed", r"(\d+) passed"),
+        ("failed", r"(\d+) failed"),
+        ("errors", r"(\d+) error"),
+    ]:
         match = re.search(pattern, result.stdout)
         if match:
             pytest_summary[key] = int(match.group(1))
@@ -208,7 +235,9 @@ def test_session_statistics_match_pytest(api_client, tmp_path):
     assert upload_result["errors"] == pytest_summary.get("errors", 0)
 
 
-def test_traceback_formatting_matches_structure(api_client, mixed_outcomes_jsonl):
+def test_traceback_formatting_matches_structure(
+    api_client: APIClient, mixed_outcomes_jsonl: str
+) -> None:
     """Verify tracebacks have proper structure."""
     upload_result = api_client.upload_jsonl(mixed_outcomes_jsonl)
     session_id = upload_result["session_id"]
@@ -223,7 +252,9 @@ def test_traceback_formatting_matches_structure(api_client, mixed_outcomes_jsonl
     assert "AssertionError" in html
 
 
-def test_result_badges_use_correct_colors(api_client, setup_teardown_errors_jsonl):
+def test_result_badges_use_correct_colors(
+    api_client: APIClient, setup_teardown_errors_jsonl: str
+) -> None:
     """Verify result badges use correct color scheme."""
     upload_result = api_client.upload_jsonl(setup_teardown_errors_jsonl)
     session_id = upload_result["session_id"]
@@ -242,7 +273,9 @@ def test_result_badges_use_correct_colors(api_client, setup_teardown_errors_json
     assert "bg-green-100" in html
 
 
-def test_collapsed_sections_expandable(api_client, mixed_outcomes_jsonl):
+def test_collapsed_sections_expandable(
+    api_client: APIClient, mixed_outcomes_jsonl: str
+) -> None:
     """Verify test entries are collapsible/expandable."""
     upload_result = api_client.upload_jsonl(mixed_outcomes_jsonl)
     session_id = upload_result["session_id"]
@@ -258,9 +291,11 @@ def test_collapsed_sections_expandable(api_client, mixed_outcomes_jsonl):
 
 @pytest.mark.skipif(
     not (Path("test_sample") / "test_xfail_xpass.py").exists(),
-    reason="Requires test_sample directory"
+    reason="Requires test_sample directory",
 )
-def test_compare_xfail_xpass_with_pytest_html(api_client, tmp_path):
+def test_compare_xfail_xpass_with_pytest_html(
+    api_client: APIClient, tmp_path: Path
+) -> None:
     """Compare our handling of xfail/xpass with pytest-html."""
     session_id, our_html, html_path = run_pytest_and_upload(
         api_client, tmp_path, "test_sample/test_xfail_xpass.py"
@@ -285,25 +320,36 @@ def test_compare_xfail_xpass_with_pytest_html(api_client, tmp_path):
 
 @pytest.mark.skipif(
     not (Path("test_sample") / "test_xfail_xpass.py").exists(),
-    reason="Requires test_sample directory"
+    reason="Requires test_sample directory",
 )
-def test_xfail_xpass_statistics_match_pytest(api_client, tmp_path):
+def test_xfail_xpass_statistics_match_pytest(
+    api_client: APIClient, tmp_path: Path
+) -> None:
     """Verify xfail/xpass statistics match pytest output."""
     jsonl_path = tmp_path / "report.jsonl"
 
     # Run pytest and capture output
-    result = subprocess.run([
-        "uv", "run", "pytest",
-        "test_sample/test_xfail_xpass.py",
-        f"--report-log={jsonl_path}",
-        "-v"
-    ], capture_output=True, text=True, cwd=Path.cwd())
+    result = subprocess.run(
+        [
+            "uv",
+            "run",
+            "pytest",
+            "test_sample/test_xfail_xpass.py",
+            f"--report-log={jsonl_path}",
+            "-v",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path.cwd(),
+    )
 
     # Parse pytest output for counts
-    pytest_summary = {}
-    for key, pattern in [("passed", r'(\d+) passed'),
-                         ("xfailed", r'(\d+) xfailed'),
-                         ("xpassed", r'(\d+) xpassed')]:
+    pytest_summary: dict[str, int] = {}
+    for key, pattern in [
+        ("passed", r"(\d+) passed"),
+        ("xfailed", r"(\d+) xfailed"),
+        ("xpassed", r"(\d+) xpassed"),
+    ]:
         match = re.search(pattern, result.stdout)
         if match:
             pytest_summary[key] = int(match.group(1))

@@ -1,8 +1,8 @@
 """Database models for test sessions and reports."""
 from datetime import datetime
-from typing import Optional
 from enum import Enum
 from sqlmodel import Field, SQLModel, Relationship, Column, JSON
+from .utils import get_current_utc_time
 
 
 class SessionStatus(str, Enum):
@@ -12,15 +12,22 @@ class SessionStatus(str, Enum):
     INTERRUPTED = "interrupted"
 
 
+class TestPhase(str, Enum):
+    """Test execution phase values."""
+    SETUP = "setup"
+    CALL = "call"
+    TEARDOWN = "teardown"
+
+
 class Session(SQLModel, table=True):
     """Test session containing multiple test reports."""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-    pytest_version: Optional[str] = None
-    exitstatus: Optional[int] = None
-    status: str = Field(default=SessionStatus.IN_PROGRESS.value)  # in_progress, completed, interrupted
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_current_utc_time)
+    updated_at: datetime = Field(default_factory=get_current_utc_time)
+    pytest_version: str | None = None
+    exitstatus: int | None = None
+    status: str = Field(default=SessionStatus.IN_PROGRESS.value)
 
     # Summary counts
     total_tests: int = 0
@@ -32,7 +39,7 @@ class Session(SQLModel, table=True):
     errors: int = 0
 
     # Timing
-    duration: Optional[float] = None
+    duration: float | None = None
 
     # Relationships
     test_reports: list["TestReport"] = Relationship(back_populates="session")
@@ -41,7 +48,7 @@ class Session(SQLModel, table=True):
 class TestReport(SQLModel, table=True):
     """Individual test report for a specific phase (setup/call/teardown)."""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     session_id: int = Field(foreign_key="session.id")
 
     # Test identification
@@ -55,13 +62,13 @@ class TestReport(SQLModel, table=True):
 
     # Timing
     duration: float = 0.0
-    start: Optional[float] = None
-    stop: Optional[float] = None
+    start: float | None = None
+    stop: float | None = None
 
     # Details
-    longrepr: Optional[str] = None  # Exception/failure details
+    longrepr: str | None = None  # Exception/failure details
     sections: list = Field(default_factory=list, sa_column=Column(JSON))  # Captured output
-    wasxfail: Optional[str] = None  # For xfail(run=False) tests
+    wasxfail: str | None = None  # For xfail(run=False) tests
 
     # Relationship
     session: Session = Relationship(back_populates="test_reports")

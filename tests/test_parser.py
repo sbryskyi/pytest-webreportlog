@@ -1,13 +1,16 @@
 """Tests for parser module."""
+from collections.abc import Generator
+
 import pytest
-import json
-from sqlmodel import Session, create_engine, SQLModel
+from sqlmodel import Session, SQLModel, create_engine
+
+from src.app.models import Session as TestSession
+from src.app.models import TestReport
 from src.app.parser import parse_jsonl_report
-from src.app.models import Session as TestSession, TestReport
 
 
 @pytest.fixture
-def test_db():
+def test_db() -> Generator[Session, None, None]:
     """Create an in-memory test database."""
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
@@ -15,7 +18,7 @@ def test_db():
         yield session
 
 
-def test_parse_simple_passing_test(test_db):
+def test_parse_simple_passing_test(test_db: Session) -> None:
     """Test parsing simple passing test."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -34,7 +37,7 @@ def test_parse_simple_passing_test(test_db):
     assert session.failed == 0
 
 
-def test_parse_failed_test(test_db):
+def test_parse_failed_test(test_db: Session) -> None:
     """Test parsing failed test."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -51,7 +54,7 @@ def test_parse_failed_test(test_db):
     assert session.passed == 0
 
 
-def test_parse_with_empty_lines(test_db):
+def test_parse_with_empty_lines(test_db: Session) -> None:
     """Test parsing with empty lines."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -67,7 +70,7 @@ def test_parse_with_empty_lines(test_db):
     assert session.exitstatus == 0
 
 
-def test_parse_xfail_test(test_db):
+def test_parse_xfail_test(test_db: Session) -> None:
     """Test parsing xfail test."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -84,7 +87,7 @@ def test_parse_xfail_test(test_db):
     assert session.passed == 0
 
 
-def test_parse_xpass_test(test_db):
+def test_parse_xpass_test(test_db: Session) -> None:
     """Test parsing xpass test."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -101,7 +104,7 @@ def test_parse_xpass_test(test_db):
     assert session.passed == 0
 
 
-def test_parse_xfail_no_run(test_db):
+def test_parse_xfail_no_run(test_db: Session) -> None:
     """Test parsing xfail(run=False) test - no call phase, only setup and teardown."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -118,7 +121,7 @@ def test_parse_xfail_no_run(test_db):
     assert session.failed == 0
 
 
-def test_parse_setup_error(test_db):
+def test_parse_setup_error(test_db: Session) -> None:
     """Test parsing setup error."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -132,7 +135,7 @@ def test_parse_setup_error(test_db):
     assert session.errors == 1
 
 
-def test_parse_teardown_error(test_db):
+def test_parse_teardown_error(test_db: Session) -> None:
     """Test parsing teardown error."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -149,7 +152,7 @@ def test_parse_teardown_error(test_db):
     assert session.passed == 1  # Call phase passed
 
 
-def test_parse_multiple_tests(test_db):
+def test_parse_multiple_tests(test_db: Session) -> None:
     """Test parsing multiple tests."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -170,7 +173,7 @@ def test_parse_multiple_tests(test_db):
     assert session.skipped == 1
 
 
-def test_parse_duration_calculation(test_db):
+def test_parse_duration_calculation(test_db: Session) -> None:
     """Test that duration is calculated from timestamps."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -185,7 +188,7 @@ def test_parse_duration_calculation(test_db):
     assert session.duration > 0
 
 
-def test_parse_without_session_finish(test_db):
+def test_parse_without_session_finish(test_db: Session) -> None:
     """Test parsing without SessionFinish (interrupted session)."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -198,7 +201,7 @@ def test_parse_without_session_finish(test_db):
     assert session.exitstatus is None  # No SessionFinish means no exitstatus
 
 
-def test_parse_creates_test_reports(test_db):
+def test_parse_creates_test_reports(test_db: Session) -> None:
     """Test that TestReport records are created."""
     lines = [
         '{"pytest_version": "8.4.2", "$report_type": "SessionStart"}',
@@ -211,6 +214,8 @@ def test_parse_creates_test_reports(test_db):
     session = parse_jsonl_report(lines, test_db)
 
     # Check that test reports were created
-    reports = test_db.query(TestReport).filter(TestReport.session_id == session.id).all()
+    from sqlmodel import select
+    statement = select(TestReport).where(TestReport.session_id == session.id)
+    reports = test_db.exec(statement).all()
     assert len(reports) == 3  # setup, call, teardown
     assert all(r.nodeid == "test.py::test_pass" for r in reports)

@@ -1,15 +1,77 @@
 """Fixtures for web server tests."""
-import pytest
-import time
-import subprocess
-import requests
+from collections.abc import Generator
 from pathlib import Path
-import tempfile
 import shutil
+import subprocess
+import tempfile
+import time
+
+import pytest
+import requests
+
+
+class APIClient:
+    """HTTP client for API requests to the test web server."""
+
+    def __init__(self, base_url: str) -> None:
+        self.base_url = base_url
+        self.session = requests.Session()
+
+    def upload_jsonl(self, content: str, filename: str = "report.jsonl") -> dict:
+        """Upload JSONL content."""
+        files = {"file": (filename, content, "application/jsonl")}
+        response = self.session.post(f"{self.base_url}/upload", files=files)
+        return response.json()
+
+    def get_sessions(self) -> list[dict]:
+        """Get all sessions."""
+        response = self.session.get(f"{self.base_url}/api/sessions")
+        return response.json()
+
+    def get_session(self, session_id: int) -> dict:
+        """Get specific session."""
+        response = self.session.get(f"{self.base_url}/api/sessions/{session_id}")
+        return response.json()
+
+    def get_session_html(self, session_id: int) -> str:
+        """Get session detail HTML."""
+        response = self.session.get(f"{self.base_url}/sessions/{session_id}")
+        return response.text
+
+    def get_index_html(self) -> str:
+        """Get index page HTML."""
+        response = self.session.get(f"{self.base_url}/")
+        return response.text
+
+    def delete_session(self, session_id: int) -> requests.Response:
+        """Delete a session."""
+        response = self.session.delete(f"{self.base_url}/api/sessions/{session_id}")
+        return response
+
+    def get_test_entries_html(self, session_id: int) -> requests.Response:
+        """Get test entries HTML fragment."""
+        response = self.session.get(
+            f"{self.base_url}/api/sessions/{session_id}/test-entries"
+        )
+        return response
+
+    def post_stream_event(
+        self, event: str, session_uuid: str | None = None
+    ) -> requests.Response:
+        """Post a streaming event."""
+        headers: dict[str, str] = {}
+        if session_uuid:
+            headers["X-Session-ID"] = session_uuid
+        response = self.session.post(
+            f"{self.base_url}/api/stream/event",
+            data=event,
+            headers={**headers, "Content-Type": "text/plain"},
+        )
+        return response
 
 
 @pytest.fixture(scope="session")
-def test_db_path():
+def test_db_path() -> Generator[Path, None, None]:
     """Create a temporary database path for testing."""
     tmpdir = tempfile.mkdtemp()
     db_path = Path(tmpdir) / "test.db"
@@ -18,21 +80,28 @@ def test_db_path():
 
 
 @pytest.fixture(scope="session")
-def web_server(test_db_path):
+def web_server(test_db_path: Path) -> Generator[str, None, None]:
     """Start web server for testing."""
-    # Start server in background
     env = {
         "DATABASE_URL": f"sqlite:///{test_db_path}",
     }
 
     process = subprocess.Popen(
-        ["uv", "run", "uvicorn", "src.app.main:app", "--host", "127.0.0.1", "--port", "8001"],
+        [
+            "uv",
+            "run",
+            "uvicorn",
+            "src.app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8001",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env={**subprocess.os.environ, **env}
+        env={**subprocess.os.environ, **env},
     )
 
-    # Wait for server to start
     base_url = "http://127.0.0.1:8001"
     for _ in range(30):  # Wait up to 3 seconds
         try:
@@ -46,52 +115,21 @@ def web_server(test_db_path):
 
     yield base_url
 
-    # Stop server
     process.terminate()
     process.wait(timeout=5)
 
 
 @pytest.fixture
-def api_client(web_server):
+def api_client(web_server: str) -> APIClient:
     """HTTP client for API requests."""
-    class APIClient:
-        def __init__(self, base_url):
-            self.base_url = base_url
-            self.session = requests.Session()  # Add session for persistent connections
-
-        def upload_jsonl(self, content: str, filename: str = "report.jsonl"):
-            """Upload JSONL content."""
-            files = {"file": (filename, content, "application/jsonl")}
-            response = requests.post(f"{self.base_url}/upload", files=files)
-            return response.json()
-
-        def get_sessions(self):
-            """Get all sessions."""
-            response = requests.get(f"{self.base_url}/api/sessions")
-            return response.json()
-
-        def get_session(self, session_id: int):
-            """Get specific session."""
-            response = requests.get(f"{self.base_url}/api/sessions/{session_id}")
-            return response.json()
-
-        def get_session_html(self, session_id: int):
-            """Get session detail HTML."""
-            response = requests.get(f"{self.base_url}/sessions/{session_id}")
-            return response.text
-
-        def get_index_html(self):
-            """Get index page HTML."""
-            response = requests.get(f"{self.base_url}/")
-            return response.text
-
     return APIClient(web_server)
 
 
 # JSONL test fixtures
 
+
 @pytest.fixture
-def simple_passing_jsonl():
+def simple_passing_jsonl() -> str:
     """Simple passing test JSONL."""
     return """{"pytest_version": "8.4.2", "$report_type": "SessionStart"}
 {"nodeid": "test_sample.py::test_pass", "location": ["test_sample.py", 1, "test_pass"], "keywords": {}, "outcome": "passed", "longrepr": null, "when": "setup", "duration": 0.001, "start": 1000.0, "stop": 1000.001, "sections": [], "$report_type": "TestReport"}
@@ -102,7 +140,7 @@ def simple_passing_jsonl():
 
 
 @pytest.fixture
-def mixed_outcomes_jsonl():
+def mixed_outcomes_jsonl() -> str:
     """JSONL with passed, failed, and skipped tests."""
     return """{"pytest_version": "8.4.2", "$report_type": "SessionStart"}
 {"nodeid": "test_sample.py::test_pass", "location": ["test_sample.py", 1, "test_pass"], "keywords": {}, "outcome": "passed", "longrepr": null, "when": "setup", "duration": 0.001, "start": 1000.0, "stop": 1000.001, "sections": [], "$report_type": "TestReport"}
@@ -119,7 +157,7 @@ def mixed_outcomes_jsonl():
 
 
 @pytest.fixture
-def setup_teardown_errors_jsonl():
+def setup_teardown_errors_jsonl() -> str:
     """JSONL with setup and teardown errors."""
     return """{"pytest_version": "8.4.2", "$report_type": "SessionStart"}
 {"nodeid": "test_sample.py::test_setup_error", "location": ["test_sample.py", 1, "test_setup_error"], "keywords": {}, "outcome": "failed", "longrepr": {"reprcrash": {"path": "test_sample.py", "lineno": 3, "message": "RuntimeError: Setup failed"}, "reprtraceback": {"reprentries": [{"type": "ReprEntry", "data": {"lines": ["@pytest.fixture", "def failing():", ">   raise RuntimeError('Setup failed')", "E   RuntimeError: Setup failed"], "reprfuncargs": {"args": []}, "reprlocals": null, "reprfileloc": {"path": "test_sample.py", "lineno": 3, "message": "RuntimeError"}}}]}}, "when": "setup", "duration": 0.001, "start": 1000.0, "stop": 1000.001, "sections": [], "$report_type": "TestReport"}
@@ -131,7 +169,7 @@ def setup_teardown_errors_jsonl():
 
 
 @pytest.fixture
-def xfail_jsonl():
+def xfail_jsonl() -> str:
     """JSONL with xfail test (expected to fail and does fail)."""
     return """{"pytest_version": "8.4.2", "$report_type": "SessionStart"}
 {"nodeid": "test_sample.py::test_xfail", "location": ["test_sample.py", 1, "test_xfail"], "keywords": {"xfail": 1, "test_xfail": 1}, "outcome": "passed", "longrepr": null, "when": "setup", "duration": 0.001, "start": 1000.0, "stop": 1000.001, "sections": [], "$report_type": "TestReport"}
@@ -142,7 +180,7 @@ def xfail_jsonl():
 
 
 @pytest.fixture
-def xpass_jsonl():
+def xpass_jsonl() -> str:
     """JSONL with xpass test (expected to fail but passes)."""
     return """{"pytest_version": "8.4.2", "$report_type": "SessionStart"}
 {"nodeid": "test_sample.py::test_xpass", "location": ["test_sample.py", 1, "test_xpass"], "keywords": {"xfail": 1, "test_xpass": 1}, "outcome": "passed", "longrepr": null, "when": "setup", "duration": 0.001, "start": 1000.0, "stop": 1000.001, "sections": [], "$report_type": "TestReport"}
@@ -153,7 +191,7 @@ def xpass_jsonl():
 
 
 @pytest.fixture
-def xfail_xpass_mixed_jsonl():
+def xfail_xpass_mixed_jsonl() -> str:
     """JSONL with mix of xfail, xpass, and normal tests."""
     return """{"pytest_version": "8.4.2", "$report_type": "SessionStart"}
 {"nodeid": "test_sample.py::test_xfail_one", "location": ["test_sample.py", 1, "test_xfail_one"], "keywords": {"xfail": 1, "test_xfail_one": 1}, "outcome": "passed", "longrepr": null, "when": "setup", "duration": 0.001, "start": 1000.0, "stop": 1000.001, "sections": [], "$report_type": "TestReport"}
