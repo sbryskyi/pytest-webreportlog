@@ -564,18 +564,11 @@ wheels = [
 
 [[package]]
 name = "pytest-reportlog"
-source = { directory = "../pytest-reportlog" }
+version = "0.1.dev106+g1d080b126"
+source = { git = "https://github.com/sbryskyi/pytest-reportlog.git?branch=main#1d080b1261d0b01cd254ef713bb15de7f14dd084" }
 dependencies = [
     { name = "pytest" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "pytest" },
-    { name = "tox", marker = "extra == 'dev'" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "pytest-webreportlog"
@@ -605,7 +598,7 @@ requires-dist = [
     { name = "ansi2html", specifier = ">=1.9.2" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
-    { name = "pytest-reportlog", directory = "../pytest-reportlog" },
+    { name = "pytest-reportlog", git = "https://github.com/sbryskyi/pytest-reportlog.git?branch=main" },
     { name = "python-multipart", specifier = ">=0.0.12" },
     { name = "sqlmodel", specifier = ">=0.0.22" },
     { name = "typer", specifier = ">=0.15.0" },
