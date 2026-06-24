@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block title %}Session #{{ session.id }} - webreportlog{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Back button -->
+    <a href="/" class="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+        <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to Sessions
+    </a>
+
+    <!-- Session header -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Session #{{ session.id }}</h1>
+                    {% if session.status == 'in_progress' %}
+                    <span id="live-indicator" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
+                        <svg class="animate-pulse mr-1.5 h-3 w-3 fill-current" viewBox="0 0 8 8">
+                            <circle cx="4" cy="4" r="3" />
+                        </svg>
+                        Live
+                    </span>
+                    {% elif session.status == 'interrupted' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300">
+                        Interrupted
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ session.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </p>
+            </div>
+            <div class="text-right space-y-2">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Pytest {{ session.pytest_version }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {% if session.duration %}
+                        Duration: <span class="font-semibold">{{ "%.3f" | format(session.duration) }}s</span>
+                    {% endif %}
+                </p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Exit status: <span id="exit-status">{{ session.exitstatus if session.exitstatus is not none else 'N/A' }}</span></p>
+                <button id="delete-session-btn"
+                        class="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-700 rounded-md text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Delete Session
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="mt-6 grid grid-cols-2 md:grid-cols-7 gap-2">
+            <div id="card-all" class="filter-card bg-gray-50 dark:bg-gray-700 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('all')" data-filter="all">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Total</span>
+                </div>
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">{{ session.total_tests }}</span>
+            </div>
+            <div id="card-passed" class="filter-card bg-green-50 dark:bg-green-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('passed')" data-filter="passed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-green-700 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-green-600 dark:text-green-400">Passed</span>
+                </div>
+                <span class="text-lg font-semibold text-green-800 dark:text-green-300">{{ session.passed }}</span>
+            </div>
+            <div id="card-failed" class="filter-card bg-red-50 dark:bg-red-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('failed')" data-filter="failed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-red-700 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-red-600 dark:text-red-400">Failed</span>
+                </div>
+                <span class="text-lg font-semibold text-red-800 dark:text-red-300">{{ session.failed }}</span>
+            </div>
+            <div id="card-skipped" class="filter-card bg-yellow-50 dark:bg-yellow-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('skipped')" data-filter="skipped">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-yellow-700 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-yellow-600 dark:text-yellow-400">Skipped</span>
+                </div>
+                <span class="text-lg font-semibold text-yellow-800 dark:text-yellow-300">{{ session.skipped }}</span>
+            </div>
+            <div id="card-xfailed" class="filter-card bg-amber-50 dark:bg-amber-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('xfailed')" data-filter="xfailed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-amber-700 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-amber-600 dark:text-amber-400">XFailed</span>
+                </div>
+                <span class="text-lg font-semibold text-amber-800 dark:text-amber-300">{{ session.xfailed }}</span>
+            </div>
+            <div id="card-xpassed" class="filter-card bg-rose-50 dark:bg-rose-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('xpassed')" data-filter="xpassed">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-rose-700 dark:text-rose-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-rose-600 dark:text-rose-400">XPassed</span>
+                </div>
+                <span class="text-lg font-semibold text-rose-800 dark:text-rose-300">{{ session.xpassed }}</span>
+            </div>
+            <div id="card-error" class="filter-card bg-orange-50 dark:bg-orange-900/30 rounded p-2 flex items-center justify-between cursor-pointer border-2 border-transparent relative transition-all" onclick="toggleFilter('error')" data-filter="error">
+                <div class="flex items-center gap-2">
+                    <svg class="checkmark w-4 h-4 text-orange-700 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-orange-600 dark:text-orange-400">Errors</span>
+                </div>
+                <span class="text-lg font-semibold text-orange-800 dark:text-orange-300">{{ session.errors }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if session.logs_pruned %}
+    <!-- Logs pruned notice -->
+    <div class="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Logs and tracebacks for this session were pruned to reclaim database space. Outcomes and timings are preserved.
+    </div>
+    {% endif %}
+
+    <!-- Test results -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+        <div class="px-6 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
+            <button id="toggle-all-btn" class="cursor-pointer hover:text-gray-900 dark:hover:text-gray-300" onclick="toggleAll()">
+                <svg id="toggle-all-arrow" class="h-5 w-5 text-gray-400 dark:text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </button>
+            <button id="sort-status" class="sort-btn w-14 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onclick="sortTests('status')">
+                Status
+            </button>
+            <button id="sort-name" class="sort-btn flex-1 text-left text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onclick="sortTests('name')">
+                Name
+            </button>
+            <button id="sort-duration" class="sort-btn text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onclick="sortTests('duration')">
+                Duration
+            </button>
+        </div>
+
+        {% if test_entries %}
+        <div id="test-results-container" class="divide-y divide-gray-100 dark:divide-gray-700"
+             hx-get="/api/sessions/{{ session.id }}/test-entries"
+             hx-trigger="updateTests"
+             hx-swap="innerHTML">
+            {% include "_test_entry.html" %}
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center text-gray-500">
+            No test results found
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Delete session handler
+document.getElementById('delete-session-btn').addEventListener('click', function() {
+    if (confirm('Are you sure you want to delete this session? This action cannot be undone and will delete all associated test reports.')) {
+        fetch('/api/sessions/{{ session.id }}', {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Redirect to sessions list page
+                window.location.href = '/';
+            } else {
+                alert('Failed to delete session: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            alert('Error deleting session: ' + error.message);
+        });
+    }
+});
+
+// Initialize all filters as active
+const filterState = {
+    'all': true,
+    'passed': true,
+    'failed': true,
+    'skipped': true,
+    'xfailed': true,
+    'xpassed': true,
+    'error': true
+};
+
+function toggleFilter(outcome) {
+    const card = document.getElementById('card-' + outcome);
+
+    // Handle 'all' filter
+    if (outcome === 'all') {
+        const newState = !filterState['all'];
+        filterState['all'] = newState;
+
+        // Set all filters to same state
+        Object.keys(filterState).forEach(key => {
+            filterState[key] = newState;
+        });
+    } else {
+        // Toggle individual filter
+        filterState[outcome] = !filterState[outcome];
+
+        // Update 'all' state based on others
+        const allActive = ['passed', 'failed', 'skipped', 'xfailed', 'xpassed', 'error'].every(k => filterState[k]);
+        filterState['all'] = allActive;
+    }
+
+    // Update UI
+    updateFilterUI();
+    applyFilters();
+}
+
+function updateFilterUI() {
+    Object.keys(filterState).forEach(outcome => {
+        const card = document.getElementById('card-' + outcome);
+        const checkmark = card.querySelector('.checkmark');
+
+        if (filterState[outcome]) {
+            // Active state
+            card.classList.remove('opacity-40');
+            card.classList.add('border-gray-300');
+            checkmark.style.display = 'block';
+        } else {
+            // Inactive state
+            card.classList.add('opacity-40');
+            card.classList.remove('border-gray-300');
+            checkmark.style.display = 'none';
+        }
+    });
+}
+
+function applyFilters() {
+    const testEntries = document.querySelectorAll('.test-entry');
+
+    testEntries.forEach(entry => {
+        const outcome = entry.getAttribute('data-outcome');
+
+        // Show/hide based on filter state
+        if (filterState[outcome]) {
+            entry.style.display = '';
+        } else {
+            entry.style.display = 'none';
+        }
+    });
+}
+
+// Initialize UI on page load
+document.addEventListener('DOMContentLoaded', updateFilterUI);
+
+// Sorting functionality
+let currentSort = null;
+let sortDirection = 'asc'; // 'asc' or 'desc'
+
+// Define outcome order for status sorting
+const outcomeOrder = {
+    'error': 0,
+    'failed': 1,
+    'xpassed': 2,
+    'passed': 3,
+    'xfailed': 4,
+    'skipped': 5
+};
+
+function sortTests(sortBy) {
+    const container = document.getElementById('test-results-container');
+    const entries = Array.from(container.querySelectorAll('.test-entry'));
+
+    // Toggle direction if clicking same sort button
+    if (currentSort === sortBy) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort = sortBy;
+        sortDirection = 'asc';
+    }
+
+    // Sort the entries
+    entries.sort((a, b) => {
+        let compareResult = 0;
+
+        if (sortBy === 'status') {
+            const outcomeA = a.getAttribute('data-outcome');
+            const outcomeB = b.getAttribute('data-outcome');
+            compareResult = outcomeOrder[outcomeA] - outcomeOrder[outcomeB];
+        } else if (sortBy === 'name') {
+            const nameA = a.getAttribute('data-nodeid').toLowerCase();
+            const nameB = b.getAttribute('data-nodeid').toLowerCase();
+            compareResult = nameA.localeCompare(nameB);
+        } else if (sortBy === 'duration') {
+            const durationA = parseFloat(a.getAttribute('data-duration'));
+            const durationB = parseFloat(b.getAttribute('data-duration'));
+            compareResult = durationA - durationB;
+        }
+
+        return sortDirection === 'asc' ? compareResult : -compareResult;
+    });
+
+    // Reorder DOM elements
+    entries.forEach(entry => container.appendChild(entry));
+
+    // Update sort button UI
+    updateSortUI(sortBy);
+}
+
+function updateSortUI(activeSort) {
+    // Reset all buttons
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('text-gray-900');
+        btn.classList.add('text-gray-600');
+        // Reset text to remove arrows
+        const sortType = btn.id.replace('sort-', '');
+        const baseText = sortType.charAt(0).toUpperCase() + sortType.slice(1);
+        btn.textContent = baseText;
+    });
+
+    // Highlight active button
+    const activeButton = document.getElementById('sort-' + activeSort);
+    if (activeButton) {
+        activeButton.classList.remove('text-gray-600');
+        activeButton.classList.add('text-gray-900');
+
+        // Update button text to show direction
+        const directionArrow = sortDirection === 'asc' ? '↑' : '↓';
+        const baseText = activeSort.charAt(0).toUpperCase() + activeSort.slice(1);
+        activeButton.textContent = `${baseText} ${directionArrow}`;
+    }
+}
+
+// Collapse/expand all functionality
+function updateArrowState() {
+    const testEntries = document.querySelectorAll('.test-entry');
+    const phaseDetails = document.querySelectorAll('.phase-details');
+    const arrow = document.getElementById('toggle-all-arrow');
+
+    // Check if any test entry or phase detail is open
+    let anyOpen = false;
+    testEntries.forEach(entry => {
+        if (entry.hasAttribute('open')) anyOpen = true;
+    });
+    phaseDetails.forEach(details => {
+        if (details.hasAttribute('open')) anyOpen = true;
+    });
+
+    // Update arrow rotation based on state
+    if (anyOpen) {
+        arrow.classList.add('rotate-90');
+    } else {
+        arrow.classList.remove('rotate-90');
+    }
+}
+
+function toggleAll() {
+    const testEntries = document.querySelectorAll('.test-entry');
+    const phaseDetails = document.querySelectorAll('.phase-details');
+
+    // Check if anything is currently open
+    let anyOpen = false;
+    testEntries.forEach(entry => {
+        if (entry.hasAttribute('open')) anyOpen = true;
+    });
+    phaseDetails.forEach(details => {
+        if (details.hasAttribute('open')) anyOpen = true;
+    });
+
+    if (anyOpen) {
+        // Collapse everything
+        testEntries.forEach(entry => {
+            entry.removeAttribute('open');
+        });
+        phaseDetails.forEach(details => {
+            details.removeAttribute('open');
+        });
+    } else {
+        // Expand everything
+        testEntries.forEach(entry => {
+            entry.setAttribute('open', '');
+        });
+        phaseDetails.forEach(details => {
+            details.setAttribute('open', '');
+        });
+    }
+
+    // Update arrow state
+    updateArrowState();
+}
+
+// Add event listeners to track when individual items are toggled
+document.addEventListener('DOMContentLoaded', function() {
+    const testEntries = document.querySelectorAll('.test-entry');
+    const phaseDetails = document.querySelectorAll('.phase-details');
+
+    testEntries.forEach(entry => {
+        entry.addEventListener('toggle', updateArrowState);
+    });
+
+    phaseDetails.forEach(details => {
+        details.addEventListener('toggle', updateArrowState);
+    });
+
+    // Set initial arrow state
+    updateArrowState();
+
+    // Re-apply filters after HTMX updates test entries
+    document.getElementById('test-results-container').addEventListener('htmx:afterSwap', function() {
+        applyFilters();
+    });
+
+    // Connect to SSE for live updates if session is in progress
+    {% if session.status == 'in_progress' %}
+    connectToLiveUpdates();
+    {% endif %}
+});
+
+// Live updates via Server-Sent Events
+function connectToLiveUpdates() {
+    const sessionId = {{ session.id }};
+    const eventSource = new EventSource(`/api/stream/${sessionId}`);
+
+    console.log('Connected to live updates for session', sessionId);
+
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log('Received event:', data);
+
+        if (data.type === 'initial') {
+            console.log('Initial connection established');
+        } else if (data.type === 'session_finish') {
+            console.log('Session finished, reloading page...');
+            // Update live indicator
+            const liveIndicator = document.getElementById('live-indicator');
+            if (liveIndicator) {
+                liveIndicator.innerHTML = '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">Completed</span>';
+            }
+
+            // Close connection
+            eventSource.close();
+
+            // Reload page to show final results
+            setTimeout(() => window.location.reload(), 1000);
+        } else if (data.session) {
+            // Update statistics in real-time
+            updateStatistics(data.session);
+        }
+    };
+
+    eventSource.onerror = function(error) {
+        console.error('SSE connection error:', error);
+        eventSource.close();
+    };
+}
+
+function updateStatistics(sessionData) {
+    // Update total tests
+    const totalSpan = document.querySelector('#card-all span.text-lg');
+    if (totalSpan) totalSpan.textContent = sessionData.total_tests;
+
+    // Update passed
+    const passedSpan = document.querySelector('#card-passed span.text-lg');
+    if (passedSpan) passedSpan.textContent = sessionData.passed;
+
+    // Update failed
+    const failedSpan = document.querySelector('#card-failed span.text-lg');
+    if (failedSpan) failedSpan.textContent = sessionData.failed;
+
+    // Update skipped
+    const skippedSpan = document.querySelector('#card-skipped span.text-lg');
+    if (skippedSpan) skippedSpan.textContent = sessionData.skipped;
+
+    // Update xfailed
+    const xfailedSpan = document.querySelector('#card-xfailed span.text-lg');
+    if (xfailedSpan) xfailedSpan.textContent = sessionData.xfailed;
+
+    // Update xpassed
+    const xpassedSpan = document.querySelector('#card-xpassed span.text-lg');
+    if (xpassedSpan) xpassedSpan.textContent = sessionData.xpassed;
+
+    // Update errors
+    const errorsSpan = document.querySelector('#card-error span.text-lg');
+    if (errorsSpan) errorsSpan.textContent = sessionData.errors;
+
+    // Update exit status if available
+    if (sessionData.exitstatus !== undefined && sessionData.exitstatus !== null) {
+        const exitStatusSpan = document.getElementById('exit-status');
+        if (exitStatusSpan) exitStatusSpan.textContent = sessionData.exitstatus;
+    }
+
+    // Trigger HTMX to fetch and update test entries
+    const container = document.getElementById('test-results-container');
+    if (container) {
+        htmx.trigger(container, 'updateTests');
+    }
+}
+</script>
+{% endblock %}

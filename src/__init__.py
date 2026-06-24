@@ -1,1 +1,0 @@
-"""pytest-webreportlog source package."""

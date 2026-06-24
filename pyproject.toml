@@ -1,73 +1,13 @@
-[project]
-name = "pytest-webreportlog"
-version = "0.1.0"
-description = "Web service for viewing pytest-reportlog JSONL reports"
-readme = "README.md"
-license = "MIT"
-requires-python = ">=3.11"
-authors = [
-    { name = "Sergii" },
-]
-keywords = [
-    "pytest",
-    "testing",
-    "reports",
-    "dashboard",
-    "web",
-    "jsonl",
-    "pytest-reportlog",
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Environment :: Web Environment",
-    "Framework :: FastAPI",
-    "Framework :: Pytest",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Testing",
-    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
-    "Typing :: Typed",
-]
-dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
-    "sqlmodel>=0.0.22",
-    "jinja2>=3.1.4",
-    "python-multipart>=0.0.12",
-    "ansi2html>=1.9.2",
-    "typer>=0.15.0",
-    "pytest-reportlog",
-]
-
-[project.scripts]
-pytest-webreportlog = "app.cli:app"
-
-[project.urls]
-Homepage = "https://github.com/sbryskyi/pytest-webreportlog"
-Documentation = "https://github.com/sbryskyi/pytest-webreportlog#readme"
-Repository = "https://github.com/sbryskyi/pytest-webreportlog"
-Issues = "https://github.com/sbryskyi/pytest-webreportlog/issues"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.metadata]
-allow-direct-references = true
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/app"]
-
-[tool.uv]
-package = true
+# Virtual workspace root for the pytest-webreportlog monorepo.
+# Ships two independent distributions:
+#   - packages/plugin  -> pytest-webreportlog   (the pytest plugin; deps: pytest)
+#   - packages/server  -> webreportlog-server   (the web viewer; deps: fastapi, ...)
+[tool.uv.workspace]
+members = ["packages/*"]
 
 [tool.uv.sources]
-pytest-reportlog = { git = "https://github.com/sbryskyi/pytest-reportlog.git", branch = "main" }
+pytest-webreportlog = { workspace = true }
+webreportlog-server = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -75,20 +15,23 @@ dev = [
     "pytest-html>=4.1.1",
     "requests>=2.32.0",
     "ruff>=0.14.0",
+    # workspace members, installed editable into the shared dev venv
+    "pytest-webreportlog",
+    "webreportlog-server",
 ]
 
 [tool.pytest.ini_options]
-# Prevent pytest from trying to collect SQLModel classes as tests
+testpaths = ["tests"]
+# Prevent pytest from collecting SQLModel classes as tests
 python_classes = ["Test*", "!TestReport", "!TestPhase"]
-# Filter warnings from SQLModel classes that pytest tries to collect
 filterwarnings = [
     "ignore:cannot collect test class 'Session':pytest.PytestCollectionWarning",
     "ignore:cannot collect test class 'TestReport':pytest.PytestCollectionWarning",
     "ignore:cannot collect test class 'TestPhase':pytest.PytestCollectionWarning",
 ]
-# Add markers for test organization
 markers = [
     "web: marks tests that require the web server (deselect with '-m \"not web\"')",
+    "plugin: marks tests for the pytest plugin",
     "reports: marks tests for report format validation",
     "unit: marks unit tests",
     "slow: marks slow tests",
@@ -100,4 +43,5 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+# B008: FastAPI uses function calls (Depends/File/...) in argument defaults by design.
+ignore = ["E501", "B008"]

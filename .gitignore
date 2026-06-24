@@ -9,8 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
-# Test reports
-reports/
+# Generated report output (sample run artifacts)
+/reports/
+test_sample/reports/
 
 # Database
 data/

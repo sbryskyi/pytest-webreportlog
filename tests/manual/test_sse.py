@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Test SSE (Server-Sent Events) functionality."""
+import json
 import subprocess
 import threading
 import time
+
 import requests
-import json
 
 
 def subscribe_to_sse(session_id, events_received):
@@ -45,7 +46,7 @@ def run_pytest():
             "uv", "run", "pytest",
             "test_sample/test_module_a.py::test_pass",
             "-v",
-            "--report-log-endpoint=http://127.0.0.1:8006/api/stream/event"
+            "--webreportlog-url=http://127.0.0.1:8006"
         ],
         cwd="/home/sergii/p/pytest-webreportlog",
         capture_output=True,
@@ -66,12 +67,12 @@ def main():
 
     # First, run pytest to get a session ID
     print("\n[STEP 1] Creating initial session to get session ID...")
-    result = subprocess.run(
+    subprocess.run(
         [
             "uv", "run", "pytest",
             "test_sample/test_module_a.py::test_pass",
             "-v",
-            "--report-log-endpoint=http://127.0.0.1:8006/api/stream/event"
+            "--webreportlog-url=http://127.0.0.1:8006"
         ],
         cwd="/home/sergii/p/pytest-webreportlog",
         capture_output=True,
@@ -102,7 +103,7 @@ def main():
     time.sleep(1)
 
     # Run pytest with streaming
-    print(f"\n[STEP 3] Running pytest with streaming...")
+    print("\n[STEP 3] Running pytest with streaming...")
     run_pytest()
 
     # Wait for SSE thread to finish

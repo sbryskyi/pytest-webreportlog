@@ -1,92 +1,64 @@
 # pytest-webreportlog
 
-A web dashboard for [pytest-reportlog](https://github.com/pytest-dev/pytest-reportlog) output. Upload JSONL reports or stream test events in real time.
+A live pytest results dashboard, split into two independently-installable pieces:
+
+| Package | Role | Dependencies |
+|---------|------|--------------|
+| [`pytest-webreportlog`](packages/plugin) | pytest plugin — streams results over HTTP as tests run | `pytest` only |
+| [`webreportlog-server`](packages/server) | web viewer — receives, stores, and renders results | fastapi / uvicorn / sqlmodel / jinja2 / ansi2html / typer |
+
+The two never need to be installed together: the test runner installs only the plugin; the viewer host installs only the server. They speak a small HTTP event protocol — no report files, no shared pytest dependency.
+
+## How it works
+
+```
+pytest --webreportlog-url=URL ──HTTP events──▶ webreportlog-server ──▶ dashboard
+```
+
+The plugin serializes each pytest report with the built-in `pytest_report_to_serializable` hook and POSTs it (phase by phase) to the viewer's `/api/stream/event` endpoint, correlated by a per-run `X-Session-ID`. Captured output is phase-isolated — each setup/call/teardown report carries only its own sections.
+
+## Quick start (development, single repo)
+
+This repo is a uv workspace containing both packages.
+
+```bash
+uv sync                                   # installs both packages + dev tools
+
+# terminal 1: the viewer
+uv run webreportlog-server serve          # http://127.0.0.1:8000
+
+# terminal 2: your tests, streaming live
+uv run pytest --webreportlog-url=http://127.0.0.1:8000
+```
+
+Open http://127.0.0.1:8000 to watch sessions appear in real time.
+
+## Installing the pieces separately
+
+```bash
+# on the machine that runs tests
+pip install pytest-webreportlog
+
+# on the machine that hosts the dashboard
+pip install webreportlog-server
+```
+
+See each package's README for full options:
+- [packages/plugin/README.md](packages/plugin/README.md) — plugin options, wire format
+- [packages/server/README.md](packages/server/README.md) — CLI, database, API
 
 ## Features
 
-- Upload `.jsonl` reports via web UI or API
-- Session list with pass/fail/skip/xfail/error counts
+- Session list with pass/fail/skip/xfail/xpass/error counts
 - Per-test drill-down by phase (setup / call / teardown) with ANSI color rendering
 - Test history and pass-rate analytics across sessions
-- Real-time streaming via Server-Sent Events (SSE)
+- Real-time updates via Server-Sent Events
 - Dark mode
-
-## Stack
-
-FastAPI · SQLModel · SQLite · Jinja2 · Tailwind CSS · HTMX · Uvicorn · Typer
-
-## Quick start
-
-```bash
-uv sync
-pytest-webreportlog dev        # http://localhost:8000
-```
-
-Run your tests, then upload the report:
-
-```bash
-pytest --report-log=report.jsonl
-# drag-and-drop report.jsonl onto the web UI, or:
-curl -F "file=@report.jsonl" http://localhost:8000/upload
-```
-
-## CLI
-
-```
-pytest-webreportlog dev                          # dev server with auto-reload
-pytest-webreportlog serve [--host] [--port] [--reload] [--workers N]
-pytest-webreportlog start [--host] [--port] [--pid-file] [--log-file]
-pytest-webreportlog stop / restart / status
-```
-
-> **Note:** SSE streaming requires `--workers 1` (the default). Multiple workers use separate in-memory state.
-
-## Database
-
-SQLite, stored in `data/sessions.db` by default. Override with `DATABASE_URL`:
-
-```bash
-DATABASE_URL=sqlite:///data/myproject.db pytest-webreportlog serve
-```
-
-## API
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Session list |
-| GET | `/sessions/{id}` | Session detail |
-| GET | `/history` | Test history overview |
-| GET | `/history/{nodeid}` | Per-test history |
-| GET | `/api/sessions` | Sessions (JSON) |
-| GET | `/api/sessions/{id}` | Session detail (JSON) |
-| DELETE | `/api/sessions/{id}` | Delete session |
-| POST | `/upload` | Upload JSONL file |
-| POST | `/api/stream/event` | Post a test event |
-| GET | `/api/stream/{session_id}` | SSE stream |
-
-### Streaming example
-
-```bash
-SESSION=$(uuidgen)
-BASE=http://localhost:8000
-
-curl -s -X POST $BASE/api/stream/event -H "X-Session-ID: $SESSION" \
-  -H "Content-Type: text/plain" \
-  -d '{"pytest_version":"8.4.2","$report_type":"SessionStart"}'
-
-curl -s -X POST $BASE/api/stream/event -H "X-Session-ID: $SESSION" \
-  -H "Content-Type: text/plain" \
-  -d '{"nodeid":"test_foo.py::test_bar","outcome":"passed","when":"call","duration":0.01,"$report_type":"TestReport"}'
-
-curl -s -X POST $BASE/api/stream/event -H "X-Session-ID: $SESSION" \
-  -H "Content-Type: text/plain" \
-  -d '{"exitstatus":0,"$report_type":"SessionFinish"}'
-```
 
 ## Tests
 
 ```bash
-uv run pytest tests/
+uv run pytest          # plugin, server, and end-to-end suites
 ```
 
 ## License
