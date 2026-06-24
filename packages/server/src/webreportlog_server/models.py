@@ -47,6 +47,9 @@ class Session(SQLModel, table=True):
     # Retention: True when this session's logs/tracebacks were stripped to reclaim space
     logs_pruned: bool = Field(default=False)
 
+    # Environment metadata collected by the plugin at session start
+    env_metadata: dict | None = Field(default=None, sa_column=Column(JSON))
+
     # Relationships
     test_reports: list["TestReport"] = Relationship(back_populates="session")
 

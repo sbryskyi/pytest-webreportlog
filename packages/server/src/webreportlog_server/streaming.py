@@ -46,7 +46,8 @@ def process_event(event_line: str, session_id: int | None, db: Session) -> tuple
         else:
             session = TestSession(
                 pytest_version=record.get("pytest_version"),
-                status=SessionStatus.IN_PROGRESS.value
+                status=SessionStatus.IN_PROGRESS.value,
+                env_metadata=record.get("metadata") or None,
             )
             db.add(session)
             db.commit()

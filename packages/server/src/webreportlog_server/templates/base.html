@@ -18,6 +18,9 @@
         html:not(.dark) { background-color: rgb(243, 244, 246); }
         /* Table headings should never wrap; the table scrolls instead. */
         thead th { white-space: nowrap; }
+        /* Rotate the chevron when a <details> block is open. */
+        details[open] .details-chevron { transform: rotate(90deg); }
+        .details-chevron { transition: transform 0.15s ease; }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>

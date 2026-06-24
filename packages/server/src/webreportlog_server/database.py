@@ -80,7 +80,10 @@ def ensure_columns() -> None:
     so additive schema changes need an explicit (idempotent) ALTER for older DBs.
     """
     # column name -> SQL definition for ALTER TABLE ... ADD COLUMN
-    expected = {"logs_pruned": "BOOLEAN NOT NULL DEFAULT 0"}
+    expected = {
+        "logs_pruned": "BOOLEAN NOT NULL DEFAULT 0",
+        "env_metadata": "TEXT DEFAULT NULL",
+    }
     with engine.begin() as conn:
         existing = {
             row[1]  # (cid, name, type, notnull, dflt_value, pk)

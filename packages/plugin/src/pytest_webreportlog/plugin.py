@@ -11,6 +11,8 @@ is unreachable the test run is never interrupted.
 """
 import copy
 import json
+import platform
+import sys
 import urllib.error
 import urllib.request
 import uuid
@@ -156,7 +158,11 @@ class WebReportLogPlugin:
 
     def pytest_sessionstart(self) -> None:
         self._post(
-            {"pytest_version": pytest.__version__, "$report_type": "SessionStart"}
+            {
+                "pytest_version": pytest.__version__,
+                "$report_type": "SessionStart",
+                "metadata": _collect_metadata(self._config),
+            }
         )
 
     def pytest_collectreport(self, report: pytest.CollectReport) -> None:
@@ -188,6 +194,35 @@ class WebReportLogPlugin:
         if self._failed:
             summary += f", {self._failed} failed"
         terminalreporter.write_sep("-", summary)
+
+
+def _collect_metadata(config: pytest.Config) -> dict[str, Any]:
+    """Return a JSON-safe metadata dict describing the test environment.
+
+    Prefers pytest-metadata's rich collection (config._metadata) when present;
+    falls back to a minimal set gathered from stdlib.
+    """
+    if hasattr(config, "_metadata"):
+        try:
+            raw = dict(config._metadata)
+            return json.loads(json.dumps(raw, default=str))
+        except Exception:
+            pass
+
+    meta: dict[str, Any] = {
+        "Python": sys.version.split()[0],
+        "Platform": platform.platform(),
+    }
+    try:
+        packages = {
+            dist.project_name: dist.version
+            for _, dist in config.pluginmanager.list_plugin_distinfo()
+        }
+        if packages:
+            meta["Packages"] = packages
+    except Exception:
+        pass
+    return meta
 
 
 def _cleanup_unserializable(d: dict[str, Any]) -> dict[str, Any]:

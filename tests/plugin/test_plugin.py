@@ -117,6 +117,20 @@ def test_exclude_logs_on_passed(pytester: pytest.Pytester, event_server) -> None
     assert "Captured log call" not in headers
 
 
+def test_metadata_included_in_session_start(
+    pytester: pytest.Pytester, event_server
+) -> None:
+    """SessionStart payload must include a non-empty metadata dict."""
+    pytester.makepyfile("def test_x(): pass")
+    pytester.runpytest_subprocess(f"--webreportlog-url={event_server.url}")
+
+    start = event_server.events_of_type("SessionStart")[0]
+    meta = start.get("metadata")
+    assert isinstance(meta, dict) and meta, "metadata must be a non-empty dict"
+    # Basic keys are present regardless of whether pytest-metadata is installed.
+    assert "Python" in meta or "Platform" in meta or "Packages" in meta
+
+
 def test_inert_without_url(pytester: pytest.Pytester, event_server) -> None:
     """With no --webreportlog-url, the plugin streams nothing."""
     pytester.makepyfile(
