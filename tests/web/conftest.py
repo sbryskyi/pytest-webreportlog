@@ -91,7 +91,7 @@ def web_server(test_db_path: Path) -> Generator[str, None, None]:
             "uv",
             "run",
             "uvicorn",
-            "src.app.main:app",
+            "app.main:app",
             "--host",
             "127.0.0.1",
             "--port",

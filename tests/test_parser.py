@@ -4,9 +4,9 @@ from collections.abc import Generator
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from src.app.models import Session as TestSession
-from src.app.models import TestReport
-from src.app.parser import parse_jsonl_report
+from app.models import Session as TestSession
+from app.models import TestReport
+from app.parser import parse_jsonl_report
 
 
 @pytest.fixture

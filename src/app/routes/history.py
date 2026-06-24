@@ -1,4 +1,5 @@
 """History-related routes."""
+from typing import Literal
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func, case
@@ -6,35 +7,43 @@ from sqlmodel import Session, select
 
 from ..database import get_session as get_db_session
 from ..models import Session as TestSession, TestReport
+from ..templates_config import templates
 from ..utils import determine_test_outcome
 
 router = APIRouter()
 
 
 def _get_latest_test_results(db: Session) -> dict:
-    """Get latest test results for all nodeids efficiently.
+    """Get latest test results for all nodeids using a subquery.
 
     Returns:
         Dict mapping nodeid to (outcome, keywords, location)
     """
-    # Get all call phase reports with session info, then filter to latest in Python
-    # This is more efficient than N queries
-    statement = (
-        select(TestReport, TestSession.created_at)
-        .join(TestSession)
+    # Subquery: highest session_id (most recent) per nodeid for call-phase reports
+    latest_subq = (
+        select(
+            TestReport.nodeid,
+            func.max(TestReport.session_id).label("max_session_id"),
+        )
         .where(TestReport.when == "call")
-        .order_by(TestReport.nodeid, TestSession.created_at.desc())
+        .group_by(TestReport.nodeid)
+        .subquery()
     )
 
-    results = db.exec(statement).all()
+    statement = (
+        select(TestReport)
+        .join(
+            latest_subq,
+            (TestReport.nodeid == latest_subq.c.nodeid)
+            & (TestReport.session_id == latest_subq.c.max_session_id),
+        )
+        .where(TestReport.when == "call")
+    )
 
-    # Keep only the latest result for each nodeid
-    latest_by_nodeid = {}
-    for report, created_at in results:
-        if report.nodeid not in latest_by_nodeid:
-            latest_by_nodeid[report.nodeid] = (report.outcome, report.keywords, report.location)
-
-    return latest_by_nodeid
+    return {
+        report.nodeid: (report.outcome, report.keywords, report.location)
+        for report in db.exec(statement).all()
+    }
 
 
 def _calculate_duration_stats(all_durations: dict) -> tuple[dict, dict, dict]:
@@ -68,12 +77,10 @@ def _calculate_duration_stats(all_durations: dict) -> tuple[dict, dict, dict]:
 async def view_all_history(
     request: Request,
     sort_by: str = "nodeid",
-    sort_dir: str = "asc",
+    sort_dir: Literal["asc", "desc"] = "asc",
     db: Session = Depends(get_db_session)
 ):
     """Show overview of all tests with aggregated statistics."""
-    from ..main import templates
-
     # Get all unique nodeids with aggregated stats
     statement = (
         select(

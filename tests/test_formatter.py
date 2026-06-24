@@ -1,7 +1,7 @@
 """Tests for formatter module."""
 from typing import Any
 
-from src.app.formatter import format_longrepr
+from app.formatter import format_longrepr
 
 
 def test_format_longrepr_none() -> None:

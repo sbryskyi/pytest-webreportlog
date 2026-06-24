@@ -2,8 +2,9 @@
 import os
 import signal
 import sys
+import time
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -13,11 +14,12 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Default configuration
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 DEFAULT_PID_FILE = Path("server.pid")
 DEFAULT_LOG_FILE = Path("server.log")
+
+_STOP_TIMEOUT = 10  # seconds to wait for graceful shutdown
 
 
 def _get_pid_from_file(pid_file: Path) -> int | None:
@@ -46,6 +48,16 @@ def _cleanup_stale_pid_file(pid_file: Path) -> None:
         pid_file.unlink(missing_ok=True)
 
 
+def _wait_for_stop(pid: int) -> bool:
+    """Poll until the process stops or the timeout is reached. Returns True if stopped."""
+    deadline = time.monotonic() + _STOP_TIMEOUT
+    while time.monotonic() < deadline:
+        if not _is_process_running(pid):
+            return True
+        time.sleep(0.25)
+    return False
+
+
 @app.command()
 def serve(
     host: Annotated[
@@ -68,16 +80,24 @@ def serve(
     """Start the web server (foreground mode)."""
     import uvicorn
 
+    effective_workers = workers if not reload else 1
+    if effective_workers > 1:
+        typer.echo(
+            "Warning: streaming (SSE) requires workers=1. "
+            "With multiple workers, in-memory session state is not shared between processes.",
+            err=True,
+        )
+
     typer.echo(f"Starting server at http://{host}:{port}")
     if reload:
         typer.echo("Auto-reload enabled (development mode)")
 
     uvicorn.run(
-        "src.app.main:app",
+        "app.main:app",
         host=host,
         port=port,
         reload=reload,
-        workers=workers if not reload else 1,  # reload doesn't work with multiple workers
+        workers=effective_workers,
     )
 
 
@@ -118,7 +138,7 @@ def start(
                 sys.executable,
                 "-m",
                 "uvicorn",
-                "src.app.main:app",
+                "app.main:app",
                 "--host",
                 host,
                 "--port",
@@ -181,9 +201,6 @@ def restart(
     ] = DEFAULT_LOG_FILE,
 ) -> None:
     """Restart the background server."""
-    import time
-
-    # Stop if running
     _cleanup_stale_pid_file(pid_file)
     pid = _get_pid_from_file(pid_file)
     if pid is not None:
@@ -191,11 +208,14 @@ def restart(
             os.kill(pid, signal.SIGTERM)
             pid_file.unlink(missing_ok=True)
             typer.echo(f"Stopped server (PID: {pid})")
-            time.sleep(1)  # Give it time to shut down
+            if not _wait_for_stop(pid):
+                typer.echo(
+                    f"Warning: server (PID {pid}) did not stop within {_STOP_TIMEOUT}s",
+                    err=True,
+                )
         except OSError:
             pass
 
-    # Start fresh
     start(host=host, port=port, pid_file=pid_file, log_file=log_file)
 
 

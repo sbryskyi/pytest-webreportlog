@@ -45,13 +45,13 @@ dependencies = [
 ]
 
 [project.scripts]
-pytest-webreportlog = "src.app.cli:app"
+pytest-webreportlog = "app.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/sergii/pytest-webreportlog"
-Documentation = "https://github.com/sergii/pytest-webreportlog#readme"
-Repository = "https://github.com/sergii/pytest-webreportlog"
-Issues = "https://github.com/sergii/pytest-webreportlog/issues"
+Homepage = "https://github.com/sbryskyi/pytest-webreportlog"
+Documentation = "https://github.com/sbryskyi/pytest-webreportlog#readme"
+Repository = "https://github.com/sbryskyi/pytest-webreportlog"
+Issues = "https://github.com/sbryskyi/pytest-webreportlog/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -61,7 +61,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/app"]
 
 [tool.uv]
 package = true

@@ -2,12 +2,14 @@
 import json
 from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
 from fastapi.responses import HTMLResponse
+from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from ..database import get_session as get_db_session
 from ..models import Session as TestSession, TestReport
 from ..parser import parse_jsonl_report
 from ..services.entry_builder import build_test_entries
+from ..templates_config import templates
 
 router = APIRouter()
 
@@ -18,8 +20,6 @@ MAX_UPLOAD_SIZE_MB = 100
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, db: Session = Depends(get_db_session)):
     """Show list of all test sessions."""
-    from ..main import templates
-
     statement = select(TestSession).order_by(TestSession.created_at.desc())
     sessions = db.exec(statement).all()
 
@@ -42,14 +42,12 @@ async def view_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get all test reports for this session
     statement = select(TestReport).where(
         TestReport.session_id == session_id
     ).order_by(TestReport.nodeid, TestReport.when)
 
     test_reports = db.exec(statement).all()
 
-    # Build test entries using helper function
     test_entries = build_test_entries(test_reports)
 
     return templates.TemplateResponse(
@@ -147,13 +145,7 @@ async def delete_session(session_id: int, db: Session = Depends(get_db_session))
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Delete all related test reports first
-    statement = select(TestReport).where(TestReport.session_id == session_id)
-    test_reports = db.exec(statement).all()
-    for report in test_reports:
-        db.delete(report)
-
-    # Delete the session
+    db.exec(delete(TestReport).where(TestReport.session_id == session_id))
     db.delete(session)
     db.commit()
 
@@ -170,8 +162,6 @@ async def get_test_entries_html(
 
     Returns HTML fragments for test result rows that can be inserted into the DOM.
     """
-    from ..main import templates
-
     session = db.get(TestSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

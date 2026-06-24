@@ -17,7 +17,7 @@ from .utils import (
 active_sessions: dict[int, dict[str, Any]] = {}
 
 
-def process_event(event_line: str, session_id: int | None, db: Session) -> tuple[TestSession, str]:
+def process_event(event_line: str, session_id: int | None, db: Session) -> tuple[TestSession | None, str]:
     """Process a single JSONL event line.
 
     Args:
@@ -154,11 +154,9 @@ def process_event(event_line: str, session_id: int | None, db: Session) -> tuple
         return session, f"test_report_{when}"
 
     elif report_type == "CollectReport":
-        # Collection reports can be ignored - just return the current session
         if not session_id:
-            # If we don't have a session yet, we'll need to create a placeholder
-            # or wait for SessionStart. For now, raise an error.
-            raise ValueError("CollectReport without session_id")
+            # Collection errors can arrive before SessionStart; silently ignore.
+            return None, "collect_report"
 
         session = db.get(TestSession, session_id)
         if not session:

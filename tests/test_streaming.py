@@ -5,9 +5,9 @@ from collections.abc import Generator
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from src.app.models import Session as TestSession
-from src.app.models import SessionStatus, TestReport
-from src.app.streaming import _update_session_stats, active_sessions, process_event
+from app.models import Session as TestSession
+from app.models import SessionStatus, TestReport
+from app.streaming import _update_session_stats, active_sessions, process_event
 
 
 @pytest.fixture
@@ -426,11 +426,12 @@ def test_process_collect_report(test_db: Session) -> None:
 
 
 def test_process_collect_report_without_session_id(test_db: Session) -> None:
-    """Test CollectReport without session_id raises error."""
+    """CollectReport before SessionStart is silently ignored (returns None session)."""
     event = '{"nodeid": "test.py", "$report_type": "CollectReport"}'
 
-    with pytest.raises(ValueError, match="CollectReport without session_id"):
-        process_event(event, None, test_db)
+    session, event_type = process_event(event, None, test_db)
+    assert session is None
+    assert event_type == "collect_report"
 
 
 # Edge cases and error handling

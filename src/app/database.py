@@ -1,26 +1,30 @@
 """Database configuration and session management."""
 import os
+import sqlite3
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from sqlmodel import SQLModel, create_engine, Session
 from pathlib import Path
 
-# Create database directory
 DB_DIR = Path("data")
 DB_DIR.mkdir(exist_ok=True)
 
-# Get database URL from environment variable or use default
-# Format: DATABASE_URL=sqlite:///data/mydb.db or DATABASE_URL=sqlite:///path/to/db.db
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_DIR}/sessions.db")
 
-# Create engine
 engine = create_engine(DATABASE_URL, echo=False)
 
 
-def create_db_and_tables():
-    """Create database tables if they don't exist.
+@event.listens_for(Engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable foreign key constraint enforcement for SQLite connections."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
-    This preserves existing data - tables are only created if missing.
-    """
-    # Only create tables if they don't exist (preserves data)
+
+def create_db_and_tables():
+    """Create database tables if they don't exist."""
     SQLModel.metadata.create_all(engine)
 
 
