@@ -11,7 +11,7 @@ from ..database import get_session as get_db_session
 from ..models import Session as TestSession
 from ..models import TestReport
 from ..templates_config import templates
-from ..utils import determine_test_outcome
+from ..utils import build_facets, determine_test_outcome
 
 router = APIRouter()
 
@@ -277,6 +277,8 @@ async def view_history(
         all_durations
     )
 
+    facets = build_facets([e["session"] for e in history_entries])
+
     return templates.TemplateResponse(
         request,
         "history.html",
@@ -291,5 +293,6 @@ async def view_history(
             "avg_durations": avg_durations,
             "max_durations": max_durations,
             "min_durations": min_durations,
+            "facets": facets,
         },
     )

@@ -201,16 +201,31 @@ class WebReportLogPlugin:
         terminalreporter.write_sep("-", summary)
 
 
+def _pytest_metadata(config: pytest.Config) -> dict[str, Any] | None:
+    """Return pytest-metadata's collected metadata, or None when unavailable.
+
+    pytest-metadata >= 2.0 stores it in ``config.stash`` (keyed by a StashKey it
+    exports); older versions used ``config._metadata``. Both are optional — the
+    plugin itself depends only on pytest.
+    """
+    try:
+        from pytest_metadata.plugin import metadata_key
+
+        return config.stash.get(metadata_key, None)
+    except Exception:
+        return getattr(config, "_metadata", None)
+
+
 def _collect_metadata(config: pytest.Config) -> dict[str, Any]:
     """Return a JSON-safe metadata dict describing the test environment.
 
-    Prefers pytest-metadata's rich collection (config._metadata) when present;
-    falls back to a minimal set gathered from stdlib.
+    Prefers pytest-metadata's rich collection when present; falls back to a
+    minimal set gathered from stdlib.
     """
-    if hasattr(config, "_metadata"):
+    raw = _pytest_metadata(config)
+    if raw:
         try:
-            raw = dict(config._metadata)
-            return json.loads(json.dumps(raw, default=str))
+            return json.loads(json.dumps(dict(raw), default=str))
         except Exception:
             pass
 

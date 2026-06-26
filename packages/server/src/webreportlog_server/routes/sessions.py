@@ -20,7 +20,7 @@ from ..models import TestReport
 from ..services.entry_builder import build_test_entries
 from ..services.retention import prune_database
 from ..templates_config import templates
-from ..utils import format_size, parse_size
+from ..utils import build_facets, format_size, parse_size
 
 
 class PruneRequest(BaseModel):
@@ -41,7 +41,13 @@ async def index(request: Request, db: Session = Depends(get_db_session)):
     sessions = db.exec(statement).all()
 
     return templates.TemplateResponse(
-        request, "index.html", {"request": request, "sessions": sessions}
+        request,
+        "index.html",
+        {
+            "request": request,
+            "sessions": sessions,
+            "facets": build_facets(sessions),
+        },
     )
 
 

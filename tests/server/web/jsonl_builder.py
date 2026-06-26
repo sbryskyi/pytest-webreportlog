@@ -118,14 +118,17 @@ class JSONLBuilder:
         self._records: list[dict] = []
         self._current_timestamp: float = 1000.0
 
-    def session_start(self, pytest_version: str = "8.4.2") -> "JSONLBuilder":
-        """Add SessionStart record."""
-        self._records.append(
-            {
-                "pytest_version": pytest_version,
-                "$report_type": "SessionStart",
-            }
-        )
+    def session_start(
+        self, pytest_version: str = "8.4.2", metadata: dict | None = None
+    ) -> "JSONLBuilder":
+        """Add SessionStart record (optionally with environment metadata)."""
+        record: dict = {
+            "pytest_version": pytest_version,
+            "$report_type": "SessionStart",
+        }
+        if metadata is not None:
+            record["metadata"] = metadata
+        self._records.append(record)
         return self
 
     def test(self, nodeid: str) -> TestBuilder:

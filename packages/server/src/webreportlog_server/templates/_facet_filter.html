@@ -1,0 +1,57 @@
+{# Reusable client-side facet filter. Include ONCE per page, then call
+   initFacetFilter({barId, rowSelector, onChange}). Each filterable row carries a
+   data-facets JSON object (attr -> stringified value). Semantics: OR within a
+   group, AND across groups; a group with no selected chip imposes no constraint;
+   a row missing a filtered attribute is hidden. #}
+<script>
+if (!window.initFacetFilter) {
+    window.initFacetFilter = function (opts) {
+        const bar = document.getElementById(opts.barId);
+        const rows = () => document.querySelectorAll(opts.rowSelector);
+        // selected: Map<attr, Set<value>>
+        const selected = new Map();
+
+        function rowVisible(row) {
+            let data = {};
+            try { data = JSON.parse(row.dataset.facets || "{}"); } catch (e) { data = {}; }
+            for (const [attr, values] of selected) {
+                if (values.size === 0) continue;            // group inactive
+                const rowVal = data[attr];
+                if (rowVal === undefined || !values.has(rowVal)) return false;
+            }
+            return true;
+        }
+
+        function apply() {
+            rows().forEach(function (row) {
+                row.style.display = rowVisible(row) ? "" : "none";
+            });
+            if (bar) {
+                bar.querySelectorAll(".facet-chip").forEach(function (chip) {
+                    const set = selected.get(chip.dataset.facetAttr);
+                    const active = !!set && set.has(chip.dataset.facetValue);
+                    chip.classList.toggle("opacity-40", !active);
+                    chip.classList.toggle("border-transparent", !active);
+                    chip.classList.toggle("border-gray-500", active);
+                    chip.classList.toggle("dark:border-gray-300", active);
+                });
+            }
+            if (opts.onChange) opts.onChange(rows());
+        }
+
+        if (bar) {
+            bar.querySelectorAll(".facet-chip").forEach(function (chip) {
+                chip.addEventListener("click", function () {
+                    const attr = chip.dataset.facetAttr, val = chip.dataset.facetValue;
+                    if (!selected.has(attr)) selected.set(attr, new Set());
+                    const set = selected.get(attr);
+                    set.has(val) ? set.delete(val) : set.add(val);
+                    apply();
+                });
+            });
+        }
+        apply();
+        return { apply: apply, rowVisible: rowVisible };
+    };
+}
+</script>

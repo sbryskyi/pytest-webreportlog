@@ -1,0 +1,25 @@
+{# Reusable Jinja macros. #}
+
+{% macro facet_filter_bar(facets, container_id) %}
+{# facets: dict[str, list[str]] (attribute -> sorted distinct values).
+   Renders nothing when there are no facets. Chips start inactive (opacity-40);
+   an empty selection means "show all". Paired with initFacetFilter in
+   _facet_filter.html, which reads each row's data-facets JSON. #}
+{% if facets %}
+<div id="{{ container_id }}" class="space-y-1.5" data-facet-filter>
+    {% for attr, values in facets.items() %}
+    <div class="flex flex-wrap items-center gap-2" data-facet-group="{{ attr }}">
+        <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mr-1 min-w-[5rem]">{{ attr }}</span>
+        {% for value in values %}
+        <button type="button"
+                class="facet-chip inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border-2 border-transparent cursor-pointer opacity-40 {{ facet_color(attr) }}"
+                data-facet-attr="{{ attr }}" data-facet-value="{{ value }}"
+                title="{{ attr }}: {{ value }}">
+            <span class="max-w-[12rem] truncate">{{ value }}</span>
+        </button>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}

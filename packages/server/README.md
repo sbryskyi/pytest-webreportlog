@@ -52,7 +52,7 @@ DATABASE_URL=sqlite:///data/myproject.db webreportlog-server serve
 
 ### Event ingestion
 
-`POST /api/stream/event` accepts one serialized pytest report (a JSON object) per request, correlated by an `X-Session-ID` header. Accepted `$report_type` values: `SessionStart`, `CollectReport`, `TestReport`, `SessionFinish`. This is exactly what the `pytest-webreportlog` plugin emits.
+`POST /api/stream/event` accepts one serialized pytest report (a JSON object) per request, correlated by an `X-Session-ID` header. Accepted `$report_type` values: `SessionStart`, `CollectReport`, `TestReport`, `SessionFinish`. This is exactly what the `pytest-webreportlog` plugin emits. The `SessionStart` event may include a `metadata` object; its scalar entries become one-click filter chips on the session list and per-test history views.
 
 ## License
 

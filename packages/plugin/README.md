@@ -32,9 +32,32 @@ Streaming is **fail-soft**: if the viewer is unreachable the run is never interr
 
 Under `pytest-xdist`, only the controller streams (workers are skipped), so events are not duplicated.
 
+## Tagging runs (environment metadata)
+
+The plugin sends a metadata dict with each session's `SessionStart`. By default it
+collects Python version, platform, and installed plugin versions. To attach your own
+attributes — a trigger type, branch, build id, anything — install
+[`pytest-metadata`](https://github.com/pytest-dev/pytest-metadata) and pass values on
+the command line:
+
+```bash
+pytest --webreportlog-url=$URL --metadata trigger nightly --metadata branch main
+```
+
+or set them programmatically in a `conftest.py`:
+
+```python
+def pytest_configure(config):
+    config._metadata["trigger"] = "nightly"  # any logic: CI vars, git, etc.
+```
+
+Every **scalar** metadata value becomes a one-click filter chip in the viewer's
+session list and per-test history, so you can answer "under which circumstances did
+this test fail?" (e.g. only `trigger=nightly` runs on `Python=3.12`).
+
 ## Wire format
 
-The plugin POSTs newline-free JSON objects to `{url}/api/stream/event` with an `X-Session-ID` header (a per-run UUID). Each event carries a `$report_type` of `SessionStart`, `CollectReport`, `TestReport`, or `SessionFinish` — the same serialized shape pytest produces internally.
+The plugin POSTs newline-free JSON objects to `{url}/api/stream/event` with an `X-Session-ID` header (a per-run UUID). Each event carries a `$report_type` of `SessionStart`, `CollectReport`, `TestReport`, or `SessionFinish` — the same serialized shape pytest produces internally. The `SessionStart` event also carries a `metadata` object (see [Tagging runs](#tagging-runs-environment-metadata)).
 
 ## License
 

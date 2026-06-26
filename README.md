@@ -52,6 +52,7 @@ See each package's README for full options:
 - Session list with pass/fail/skip/xfail/xpass/error counts
 - Per-test drill-down by phase (setup / call / teardown) with ANSI color rendering
 - Test history and pass-rate analytics across sessions
+- Filter the session list and a test's history by environment attributes (Python, platform, and any custom metadata such as a trigger or branch)
 - Real-time updates via Server-Sent Events
 - Dark mode
 

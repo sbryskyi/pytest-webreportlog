@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import facet_filter_bar %}
 
 {% block title %}Test History - {{ nodeid }} - webreportlog{% endblock %}
 
@@ -46,6 +47,10 @@
         </div>
     </div>
 
+    <!-- Attribute filters -->
+    {{ facet_filter_bar(facets, "history-facets") }}
+    <div id="history-live-count" class="text-xs text-gray-500 dark:text-gray-400"></div>
+
     <!-- History Table -->
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
         <!-- Table Header -->
@@ -62,7 +67,7 @@
 
         <div class="divide-y divide-gray-100 dark:divide-gray-700">
             {% for entry in history_entries %}
-            <details class="group even:bg-gray-50 dark:even:bg-gray-900/30">
+            <details class="facet-row group even:bg-gray-50 dark:even:bg-gray-900/30" data-outcome="{{ entry.outcome }}" data-facets='{{ scalar_env_facets(entry.session) | tojson }}'>
                 <summary class="px-6 py-0 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3">
                     <svg class="h-5 w-5 flex-shrink-0 text-gray-400 dark:text-gray-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -198,4 +203,25 @@
         </div>
     </div>
 </div>
+
+{% include "_facet_filter.html" %}
+<script>
+    (function () {
+        const total = {{ total_runs }};
+        const counter = document.getElementById("history-live-count");
+        function render(rows) {
+            const visible = [...rows].filter(r => r.style.display !== "none");
+            const passed = visible.filter(r => r.dataset.outcome === "passed").length;
+            const pct = visible.length ? (passed / visible.length * 100) : 0;
+            counter.textContent = "showing " + visible.length + " of " + total
+                + " runs · " + passed + " passed (" + pct.toFixed(1) + "%)";
+        }
+        const rowSelector = "details.facet-row";
+        if (window.initFacetFilter && document.getElementById("history-facets")) {
+            initFacetFilter({ barId: "history-facets", rowSelector: rowSelector, onChange: render });
+        } else {
+            render(document.querySelectorAll(rowSelector));
+        }
+    })();
+</script>
 {% endblock %}

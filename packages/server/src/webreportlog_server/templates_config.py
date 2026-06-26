@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
 from .database import get_configured_max_bytes, get_database_size_bytes
-from .utils import format_size
+from .utils import format_size, scalar_env_facets
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,34 @@ def database_over_cap() -> bool:
     return size is not None and cap is not None and size > cap
 
 
+# Palette for facet/attribute filter chips. Deliberately avoids the outcome
+# colours (green/red/yellow/blue/orange/amber/rose) so a filter chip never reads
+# as a pass/fail status. A stable hash maps each string to a fixed colour.
+_FACET_PALETTE = (
+    "purple",
+    "teal",
+    "cyan",
+    "indigo",
+    "violet",
+    "fuchsia",
+    "pink",
+    "lime",
+)
+
+
+def facet_color(value: str) -> str:
+    """Return Tailwind badge classes for a string (stable across processes)."""
+    if not value:
+        return "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+    # sum(ord) is stable, unlike the builtin hash().
+    color = _FACET_PALETTE[sum(ord(c) for c in value) % len(_FACET_PALETTE)]
+    return (
+        f"bg-{color}-100 dark:bg-{color}-900/50 text-{color}-800 dark:text-{color}-300"
+    )
+
+
 templates.env.globals["database_size"] = database_size
 templates.env.globals["database_cap"] = database_cap
 templates.env.globals["database_over_cap"] = database_over_cap
+templates.env.globals["facet_color"] = facet_color
+templates.env.globals["scalar_env_facets"] = scalar_env_facets

@@ -168,6 +168,34 @@ def calculate_session_stats(test_outcomes: dict[str, dict[str, Any]]) -> dict[st
     }
 
 
+def scalar_env_facets(session) -> dict[str, str]:
+    """Top-level ``env_metadata`` entries whose value is a scalar, stringified.
+
+    Nested dicts (Packages/Plugins) and lists are dropped; bool renders as
+    "True"/"False". A missing/None ``env_metadata`` yields an empty dict. These
+    scalar attributes are what the UI turns into filter chips.
+    """
+    env = getattr(session, "env_metadata", None) or {}
+    return {
+        str(key): str(value)
+        for key, value in env.items()
+        if isinstance(value, (bool, str, int, float))
+    }
+
+
+def build_facets(sessions) -> dict[str, list[str]]:
+    """Map each scalar env attribute to its sorted distinct values across sessions.
+
+    Attribute names are sorted for a stable UI; empty groups are dropped, so an
+    absence of scalar attributes yields ``{}`` (the filter bar then renders nothing).
+    """
+    groups: dict[str, set[str]] = {}
+    for session in sessions:
+        for attr, value in scalar_env_facets(session).items():
+            groups.setdefault(attr, set()).add(value)
+    return {attr: sorted(groups[attr]) for attr in sorted(groups)}
+
+
 def get_current_utc_time() -> datetime:
     """Get current UTC time with timezone awareness.
 
