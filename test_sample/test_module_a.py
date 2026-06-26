@@ -1,5 +1,7 @@
-import pytest
 import logging
+
+import pytest
+
 
 @pytest.fixture
 def setup_teardown():
@@ -13,4 +15,3 @@ def setup_teardown():
 def test_pass(setup_teardown):
     print("Call print")
     logging.warning("Call log")
-

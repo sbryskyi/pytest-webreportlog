@@ -4,6 +4,7 @@ Uses the fixture-managed `web_server` (no manual server control) and drives an
 inner pytest session through the installed plugin, then asserts the viewer
 reflects the run — both the API counts and phase-isolated HTML.
 """
+
 import pytest
 
 from .conftest import APIClient

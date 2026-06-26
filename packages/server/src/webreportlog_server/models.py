@@ -1,4 +1,5 @@
 """Database models for test sessions and reports."""
+
 from datetime import datetime
 from enum import StrEnum
 
@@ -10,6 +11,7 @@ from .utils import get_current_utc_time
 
 class SessionStatus(StrEnum):
     """Session status values."""
+
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     INTERRUPTED = "interrupted"
@@ -17,6 +19,7 @@ class SessionStatus(StrEnum):
 
 class TestPhase(StrEnum):
     """Test execution phase values."""
+
     SETUP = "setup"
     CALL = "call"
     TEARDOWN = "teardown"
@@ -59,7 +62,12 @@ class TestReport(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     session_id: int = Field(
-        sa_column=Column(Integer, ForeignKey("session.id", ondelete="CASCADE"), nullable=False, index=True)
+        sa_column=Column(
+            Integer,
+            ForeignKey("session.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
     )
 
     # Test identification — indexed for frequent WHERE/GROUP BY usage

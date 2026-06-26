@@ -1,4 +1,5 @@
 """Tests for duration calculation and display."""
+
 from .conftest import APIClient
 
 

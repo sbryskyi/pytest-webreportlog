@@ -1,4 +1,5 @@
 """Streaming-related routes for real-time test updates."""
+
 import asyncio
 import json
 
@@ -17,6 +18,7 @@ router = APIRouter()
 
 class StreamEventRequest(BaseModel):
     """Request model for streaming events."""
+
     session_id: int | None = None
     event: str  # JSONL line
 
@@ -59,16 +61,21 @@ async def stream_event(request: Request):
             session, event_type = process_event(event_line, session_id, db)
         except json.JSONDecodeError as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}") from e
+            raise HTTPException(
+                status_code=400, detail=f"Invalid JSON: {str(e)}"
+            ) from e
         except ValueError as e:
             db.rollback()
             raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
+            raise HTTPException(
+                status_code=500, detail=f"Internal server error: {str(e)}"
+            ) from e
 
         if session is None:
             return {"status": "success", "event_type": event_type}
+        assert session.id is not None  # a persisted session always has an id
 
         # Store/clean up UUID→ID mapping
         if session_uuid and event_type == "session_start":
@@ -77,22 +84,25 @@ async def stream_event(request: Request):
             session_uuid_map.pop(session_uuid, None)
 
         # Broadcast update to SSE subscribers
-        await broadcaster.broadcast(session.id, {
-            "type": event_type,
-            "session_id": session.id,
-            "session": {
-                "id": session.id,
-                "status": session.status,
-                "total_tests": session.total_tests,
-                "passed": session.passed,
-                "failed": session.failed,
-                "skipped": session.skipped,
-                "xfailed": session.xfailed,
-                "xpassed": session.xpassed,
-                "errors": session.errors,
-                "exitstatus": session.exitstatus,
-            }
-        })
+        await broadcaster.broadcast(
+            session.id,
+            {
+                "type": event_type,
+                "session_id": session.id,
+                "session": {
+                    "id": session.id,
+                    "status": session.status,
+                    "total_tests": session.total_tests,
+                    "passed": session.passed,
+                    "failed": session.failed,
+                    "skipped": session.skipped,
+                    "xfailed": session.xfailed,
+                    "xpassed": session.xpassed,
+                    "errors": session.errors,
+                    "exitstatus": session.exitstatus,
+                },
+            },
+        )
 
         return {
             "status": "success",
@@ -106,13 +116,16 @@ async def stream_event(request: Request):
                 "xfailed": session.xfailed,
                 "xpassed": session.xpassed,
                 "errors": session.errors,
-            }
+            },
         }
 
 
 @router.get("/api/stream/{session_id}")
-async def stream_session_updates(session_id: int, db: Session = Depends(get_db_session)):
+async def stream_session_updates(
+    session_id: int, db: Session = Depends(get_db_session)
+):
     """Server-Sent Events endpoint for real-time session updates."""
+
     async def event_generator():
         queue = broadcaster.subscribe(session_id)
         try:
@@ -135,6 +148,6 @@ async def stream_session_updates(session_id: int, db: Session = Depends(get_db_s
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
+            "X-Accel-Buffering": "no",
+        },
     )

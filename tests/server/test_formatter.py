@@ -40,14 +40,14 @@ def test_format_longrepr_dict_with_reprtraceback() -> None:
                         "lines": [
                             "def test_fail():",
                             ">   assert False",
-                            "E   AssertionError: test failed"
+                            "E   AssertionError: test failed",
                         ],
                         "reprfileloc": {
                             "path": "test_sample.py",
                             "lineno": 6,
-                            "message": "AssertionError"
-                        }
-                    }
+                            "message": "AssertionError",
+                        },
+                    },
                 }
             ]
         }
@@ -71,9 +71,9 @@ def test_format_longrepr_dict_multiple_entries() -> None:
                         "reprfileloc": {
                             "path": "helpers.py",
                             "lineno": 10,
-                            "message": "ValueError"
-                        }
-                    }
+                            "message": "ValueError",
+                        },
+                    },
                 },
                 {
                     "type": "ReprEntry",
@@ -82,10 +82,10 @@ def test_format_longrepr_dict_multiple_entries() -> None:
                         "reprfileloc": {
                             "path": "test_sample.py",
                             "lineno": 20,
-                            "message": "ValueError"
-                        }
-                    }
-                }
+                            "message": "ValueError",
+                        },
+                    },
+                },
             ]
         }
     }
@@ -102,7 +102,7 @@ def test_format_longrepr_dict_reprcrash_fallback() -> None:
         "reprcrash": {
             "path": "test_sample.py",
             "lineno": 15,
-            "message": "RuntimeError: Setup failed"
+            "message": "RuntimeError: Setup failed",
         }
     }
     result = format_longrepr(longrepr)
@@ -111,11 +111,7 @@ def test_format_longrepr_dict_reprcrash_fallback() -> None:
 
 def test_format_longrepr_dict_reprcrash_message_only() -> None:
     """Test formatting dict with reprcrash message but no path/lineno."""
-    longrepr = {
-        "reprcrash": {
-            "message": "RuntimeError: Something went wrong"
-        }
-    }
+    longrepr = {"reprcrash": {"message": "RuntimeError: Something went wrong"}}
     result = format_longrepr(longrepr)
     assert result == "RuntimeError: Something went wrong"
 
@@ -132,15 +128,13 @@ def test_format_longrepr_dict_no_lines() -> None:
                         "reprfileloc": {
                             "path": "test_sample.py",
                             "lineno": 5,
-                            "message": "Error"
-                        }
-                    }
+                            "message": "Error",
+                        },
+                    },
                 }
             ]
         },
-        "reprcrash": {
-            "message": "Fallback error message"
-        }
+        "reprcrash": {"message": "Fallback error message"},
     }
     result = format_longrepr(longrepr)
     # Even with no lines, reprfileloc is still added
@@ -159,8 +153,8 @@ def test_format_longrepr_dict_incomplete_reprfileloc() -> None:
                         "reprfileloc": {
                             "path": "test.py"
                             # Missing lineno
-                        }
-                    }
+                        },
+                    },
                 }
             ]
         }
@@ -174,17 +168,10 @@ def test_format_longrepr_dict_non_reprentry_type() -> None:
     longrepr = {
         "reprtraceback": {
             "reprentries": [
-                {
-                    "type": "SomethingElse",
-                    "data": {
-                        "lines": ["should be skipped"]
-                    }
-                }
+                {"type": "SomethingElse", "data": {"lines": ["should be skipped"]}}
             ]
         },
-        "reprcrash": {
-            "message": "Error occurred"
-        }
+        "reprcrash": {"message": "Error occurred"},
     }
     result = format_longrepr(longrepr)
     assert result == "Error occurred"
@@ -201,9 +188,7 @@ def test_format_longrepr_dict_missing_data() -> None:
                 }
             ]
         },
-        "reprcrash": {
-            "message": "Fallback message"
-        }
+        "reprcrash": {"message": "Fallback message"},
     }
     result = format_longrepr(longrepr)
     assert result == "Fallback message"
@@ -219,11 +204,7 @@ def test_format_longrepr_dict_empty() -> None:
 
 def test_format_longrepr_dict_empty_reprentries() -> None:
     """Test formatting dict with empty reprentries list."""
-    longrepr = {
-        "reprtraceback": {
-            "reprentries": []
-        }
-    }
+    longrepr = {"reprtraceback": {"reprentries": []}}
     result = format_longrepr(longrepr)
     assert result == str(longrepr)
 
@@ -246,9 +227,9 @@ def test_format_longrepr_dict_with_unicode() -> None:
                         "lines": [
                             "def test_unicode():",
                             ">   assert '✓' == '✗'",
-                            "E   AssertionError"
+                            "E   AssertionError",
                         ]
-                    }
+                    },
                 }
             ]
         }
@@ -264,7 +245,7 @@ def test_format_longrepr_real_pytest_structure() -> None:
         "reprcrash": {
             "path": "test_sample.py",
             "lineno": 6,
-            "message": "AssertionError: test failed"
+            "message": "AssertionError: test failed",
         },
         "reprtraceback": {
             "reprentries": [
@@ -274,19 +255,19 @@ def test_format_longrepr_real_pytest_structure() -> None:
                         "lines": [
                             "def test_fail():",
                             ">   assert False",
-                            "E   AssertionError: test failed"
+                            "E   AssertionError: test failed",
                         ],
                         "reprfuncargs": {"args": []},
                         "reprlocals": None,
                         "reprfileloc": {
                             "path": "test_sample.py",
                             "lineno": 6,
-                            "message": "AssertionError"
-                        }
-                    }
+                            "message": "AssertionError",
+                        },
+                    },
                 }
             ]
-        }
+        },
     }
     result = format_longrepr(longrepr)
     assert "def test_fail():" in result
@@ -301,7 +282,7 @@ def test_format_longrepr_setup_error_structure() -> None:
         "reprcrash": {
             "path": "test_sample.py",
             "lineno": 3,
-            "message": "RuntimeError: Setup failed"
+            "message": "RuntimeError: Setup failed",
         },
         "reprtraceback": {
             "reprentries": [
@@ -312,19 +293,19 @@ def test_format_longrepr_setup_error_structure() -> None:
                             "@pytest.fixture",
                             "def failing():",
                             ">   raise RuntimeError('Setup failed')",
-                            "E   RuntimeError: Setup failed"
+                            "E   RuntimeError: Setup failed",
                         ],
                         "reprfuncargs": {"args": []},
                         "reprlocals": None,
                         "reprfileloc": {
                             "path": "test_sample.py",
                             "lineno": 3,
-                            "message": "RuntimeError"
-                        }
-                    }
+                            "message": "RuntimeError",
+                        },
+                    },
                 }
             ]
-        }
+        },
     }
     result = format_longrepr(longrepr)
     assert "@pytest.fixture" in result
@@ -344,9 +325,9 @@ def test_format_longrepr_preserves_formatting() -> None:
                             "    def nested_function():",
                             "        value = calculate()",
                             ">       assert value > 0",
-                            "E       AssertionError"
+                            "E       AssertionError",
                         ]
-                    }
+                    },
                 }
             ]
         }

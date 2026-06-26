@@ -2,6 +2,7 @@
 
 Common cross-format tests (exceptions, logs, xfail) are in test_all_formats.py.
 """
+
 from pytest import Pytester
 
 from .report_utils import (

@@ -1,4 +1,5 @@
 """Test file with parametrized tests for comparison testing."""
+
 import pytest
 
 
@@ -10,23 +11,29 @@ def test_parametrize_simple(value):
 
 
 # Parametrization with tuples
-@pytest.mark.parametrize("input,expected", [
-    (1, 2),
-    (2, 3),
-    (3, 4),
-])
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (1, 2),
+        (2, 3),
+        (3, 4),
+    ],
+)
 def test_parametrize_tuples(input, expected):
     """Parametrized test with input/output pairs."""
     assert input + 1 == expected
 
 
 # Parametrization with some failures
-@pytest.mark.parametrize("value,should_pass", [
-    (1, True),
-    (2, True),
-    (3, False),  # This one will fail
-    (4, True),
-])
+@pytest.mark.parametrize(
+    "value,should_pass",
+    [
+        (1, True),
+        (2, True),
+        (3, False),  # This one will fail
+        (4, True),
+    ],
+)
 def test_parametrize_mixed_outcomes(value, should_pass):
     """Parametrized test with mixed pass/fail outcomes."""
     if should_pass:
@@ -44,11 +51,15 @@ def test_parametrize_multiple(x, y):
 
 
 # Parametrize with IDs
-@pytest.mark.parametrize("test_input,expected", [
-    ("3+5", 8),
-    ("2+4", 6),
-    ("6*9", 54),
-], ids=["sum1", "sum2", "product"])
+@pytest.mark.parametrize(
+    "test_input,expected",
+    [
+        ("3+5", 8),
+        ("2+4", 6),
+        ("6*9", 54),
+    ],
+    ids=["sum1", "sum2", "product"],
+)
 def test_parametrize_with_ids(test_input, expected):
     """Parametrized test with custom IDs."""
     assert eval(test_input) == expected

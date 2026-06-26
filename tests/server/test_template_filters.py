@@ -1,4 +1,5 @@
 """Tests for template filters."""
+
 from markupsafe import Markup
 from webreportlog_server.templates_config import ansi_to_html
 
@@ -176,10 +177,7 @@ def test_ansi_to_html_unicode_with_ansi() -> None:
 
 
 def test_ansi_to_html_long_text() -> None:
-    long_text = "\n".join([
-        f"\033[3{i % 8}mLine {i}\033[0m"
-        for i in range(100)
-    ])
+    long_text = "\n".join([f"\033[3{i % 8}mLine {i}\033[0m" for i in range(100)])
     result = ansi_to_html(long_text)
 
     assert isinstance(result, Markup)

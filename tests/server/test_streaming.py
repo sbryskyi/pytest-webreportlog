@@ -1,4 +1,5 @@
 """Tests for streaming event processing."""
+
 import json
 from collections.abc import Generator
 
@@ -50,7 +51,9 @@ def test_process_session_start_creates_new_session(test_db: Session) -> None:
 def test_process_session_start_with_existing_session_id(test_db: Session) -> None:
     """Test SessionStart with existing session ID."""
     # Create session first
-    existing_session = TestSession(pytest_version="8.0.0", status=SessionStatus.IN_PROGRESS.value)
+    existing_session = TestSession(
+        pytest_version="8.0.0", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(existing_session)
     test_db.commit()
     test_db.refresh(existing_session)
@@ -77,13 +80,19 @@ def test_process_session_start_with_nonexistent_session_id(test_db: Session) -> 
 def test_process_session_finish(test_db: Session) -> None:
     """Test SessionFinish event updates session."""
     # Create session first
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
     # Add to active sessions
-    active_sessions[session.id] = {"test_outcomes": {}, "min_start": None, "max_stop": None}
+    active_sessions[session.id] = {
+        "test_outcomes": {},
+        "min_start": None,
+        "max_stop": None,
+    }
 
     event = '{"exitstatus": 0, "$report_type": "SessionFinish"}'
 
@@ -117,24 +126,28 @@ def test_process_session_finish_with_nonexistent_session(test_db: Session) -> No
 def test_process_test_report_creates_report(test_db: Session) -> None:
     """Test TestReport event creates test report."""
     # Create session first
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
-    event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "location": ["test.py", 1, "test_pass"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.002,
-        "start": 1000.0,
-        "stop": 1000.002,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "location": ["test.py", 1, "test_pass"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.002,
+            "start": 1000.0,
+            "stop": 1000.002,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
 
     result_session, event_type = process_event(event, session.id, test_db)
 
@@ -144,6 +157,7 @@ def test_process_test_report_creates_report(test_db: Session) -> None:
 
     # Check that test report was created
     from sqlmodel import select
+
     statement = select(TestReport).where(TestReport.session_id == session.id)
     reports = test_db.exec(statement).all()
     assert len(reports) == 1
@@ -153,12 +167,14 @@ def test_process_test_report_creates_report(test_db: Session) -> None:
 
 def test_process_test_report_without_session_id(test_db: Session) -> None:
     """Test TestReport without session_id raises error."""
-    event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "when": "call",
-        "outcome": "passed",
-        "$report_type": "TestReport"
-    })
+    event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "when": "call",
+            "outcome": "passed",
+            "$report_type": "TestReport",
+        }
+    )
 
     with pytest.raises(ValueError, match="TestReport without session_id"):
         process_event(event, None, test_db)
@@ -166,12 +182,14 @@ def test_process_test_report_without_session_id(test_db: Session) -> None:
 
 def test_process_test_report_with_nonexistent_session(test_db: Session) -> None:
     """Test TestReport with non-existent session raises error."""
-    event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "when": "call",
-        "outcome": "passed",
-        "$report_type": "TestReport"
-    })
+    event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "when": "call",
+            "outcome": "passed",
+            "$report_type": "TestReport",
+        }
+    )
 
     with pytest.raises(ValueError, match="Session 9999 not found"):
         process_event(event, 9999, test_db)
@@ -179,24 +197,28 @@ def test_process_test_report_with_nonexistent_session(test_db: Session) -> None:
 
 def test_process_test_report_tracks_setup_error(test_db: Session) -> None:
     """Test TestReport tracks setup errors."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
-    event = json.dumps({
-        "nodeid": "test.py::test_fail",
-        "location": ["test.py", 1, "test_fail"],
-        "keywords": {},
-        "outcome": "failed",
-        "longrepr": "Setup failed",
-        "when": "setup",
-        "duration": 0.001,
-        "start": 1000.0,
-        "stop": 1000.001,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    event = json.dumps(
+        {
+            "nodeid": "test.py::test_fail",
+            "location": ["test.py", 1, "test_fail"],
+            "keywords": {},
+            "outcome": "failed",
+            "longrepr": "Setup failed",
+            "when": "setup",
+            "duration": 0.001,
+            "start": 1000.0,
+            "stop": 1000.001,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
 
     result_session, event_type = process_event(event, session.id, test_db)
 
@@ -206,41 +228,47 @@ def test_process_test_report_tracks_setup_error(test_db: Session) -> None:
 
 def test_process_test_report_tracks_teardown_error(test_db: Session) -> None:
     """Test TestReport tracks teardown errors."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
     # First add passing call phase
-    call_event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "location": ["test.py", 1, "test_pass"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.001,
-        "start": 1000.0,
-        "stop": 1000.001,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    call_event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "location": ["test.py", 1, "test_pass"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.001,
+            "start": 1000.0,
+            "stop": 1000.001,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
     process_event(call_event, session.id, test_db)
 
     # Then add failing teardown
-    teardown_event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "location": ["test.py", 1, "test_pass"],
-        "keywords": {},
-        "outcome": "failed",
-        "longrepr": "Teardown failed",
-        "when": "teardown",
-        "duration": 0.001,
-        "start": 1000.001,
-        "stop": 1000.002,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    teardown_event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "location": ["test.py", 1, "test_pass"],
+            "keywords": {},
+            "outcome": "failed",
+            "longrepr": "Teardown failed",
+            "when": "teardown",
+            "duration": 0.001,
+            "start": 1000.001,
+            "stop": 1000.002,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
 
     result_session, event_type = process_event(teardown_event, session.id, test_db)
 
@@ -250,24 +278,28 @@ def test_process_test_report_tracks_teardown_error(test_db: Session) -> None:
 
 def test_process_test_report_tracks_xfail(test_db: Session) -> None:
     """Test TestReport tracks xfail correctly."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
-    event = json.dumps({
-        "nodeid": "test.py::test_xfail",
-        "location": ["test.py", 1, "test_xfail"],
-        "keywords": {"xfail": 1},
-        "outcome": "skipped",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.0,
-        "start": 1000.0,
-        "stop": 1000.0,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    event = json.dumps(
+        {
+            "nodeid": "test.py::test_xfail",
+            "location": ["test.py", 1, "test_xfail"],
+            "keywords": {"xfail": 1},
+            "outcome": "skipped",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.0,
+            "start": 1000.0,
+            "stop": 1000.0,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
 
     result_session, event_type = process_event(event, session.id, test_db)
 
@@ -278,24 +310,28 @@ def test_process_test_report_tracks_xfail(test_db: Session) -> None:
 
 def test_process_test_report_tracks_xpass(test_db: Session) -> None:
     """Test TestReport tracks xpass correctly."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
-    event = json.dumps({
-        "nodeid": "test.py::test_xpass",
-        "location": ["test.py", 1, "test_xpass"],
-        "keywords": {"xfail": 1},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.002,
-        "start": 1000.0,
-        "stop": 1000.002,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    event = json.dumps(
+        {
+            "nodeid": "test.py::test_xpass",
+            "location": ["test.py", 1, "test_xpass"],
+            "keywords": {"xfail": 1},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.002,
+            "start": 1000.0,
+            "stop": 1000.002,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
 
     result_session, event_type = process_event(event, session.id, test_db)
 
@@ -305,41 +341,47 @@ def test_process_test_report_tracks_xpass(test_db: Session) -> None:
 
 def test_process_test_report_calculates_duration(test_db: Session) -> None:
     """Test TestReport calculates session duration from timestamps."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
     # Add first test
-    event1 = json.dumps({
-        "nodeid": "test.py::test1",
-        "location": ["test.py", 1, "test1"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.001,
-        "start": 1000.0,
-        "stop": 1000.001,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    event1 = json.dumps(
+        {
+            "nodeid": "test.py::test1",
+            "location": ["test.py", 1, "test1"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.001,
+            "start": 1000.0,
+            "stop": 1000.001,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
     process_event(event1, session.id, test_db)
 
     # Add second test with later timestamp
-    event2 = json.dumps({
-        "nodeid": "test.py::test2",
-        "location": ["test.py", 2, "test2"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.001,
-        "start": 1000.005,
-        "stop": 1000.010,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    event2 = json.dumps(
+        {
+            "nodeid": "test.py::test2",
+            "location": ["test.py", 2, "test2"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.001,
+            "start": 1000.005,
+            "stop": 1000.010,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
     result_session, _ = process_event(event2, session.id, test_db)
 
     assert result_session.duration is not None
@@ -348,60 +390,68 @@ def test_process_test_report_calculates_duration(test_db: Session) -> None:
 
 def test_process_test_report_handles_multiple_phases(test_db: Session) -> None:
     """Test TestReport handles setup, call, teardown phases."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
     # Setup phase
-    setup_event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "location": ["test.py", 1, "test_pass"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "setup",
-        "duration": 0.001,
-        "start": 1000.0,
-        "stop": 1000.001,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    setup_event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "location": ["test.py", 1, "test_pass"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "setup",
+            "duration": 0.001,
+            "start": 1000.0,
+            "stop": 1000.001,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
     session, event_type = process_event(setup_event, session.id, test_db)
     assert event_type == "test_report_setup"
 
     # Call phase
-    call_event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "location": ["test.py", 1, "test_pass"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "call",
-        "duration": 0.002,
-        "start": 1000.001,
-        "stop": 1000.003,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    call_event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "location": ["test.py", 1, "test_pass"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "call",
+            "duration": 0.002,
+            "start": 1000.001,
+            "stop": 1000.003,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
     session, event_type = process_event(call_event, session.id, test_db)
     assert event_type == "test_report_call"
     assert session.passed == 1
 
     # Teardown phase
-    teardown_event = json.dumps({
-        "nodeid": "test.py::test_pass",
-        "location": ["test.py", 1, "test_pass"],
-        "keywords": {},
-        "outcome": "passed",
-        "longrepr": None,
-        "when": "teardown",
-        "duration": 0.001,
-        "start": 1000.003,
-        "stop": 1000.004,
-        "sections": [],
-        "$report_type": "TestReport"
-    })
+    teardown_event = json.dumps(
+        {
+            "nodeid": "test.py::test_pass",
+            "location": ["test.py", 1, "test_pass"],
+            "keywords": {},
+            "outcome": "passed",
+            "longrepr": None,
+            "when": "teardown",
+            "duration": 0.001,
+            "start": 1000.003,
+            "stop": 1000.004,
+            "sections": [],
+            "$report_type": "TestReport",
+        }
+    )
     session, event_type = process_event(teardown_event, session.id, test_db)
     assert event_type == "test_report_teardown"
 
@@ -415,7 +465,9 @@ def test_process_test_report_handles_multiple_phases(test_db: Session) -> None:
 
 def test_process_collect_report(test_db: Session) -> None:
     """Test CollectReport event is handled."""
-    session = TestSession(pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value)
+    session = TestSession(
+        pytest_version="8.4.2", status=SessionStatus.IN_PROGRESS.value
+    )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
@@ -462,7 +514,7 @@ def test_process_unknown_report_type(test_db: Session) -> None:
 
 def test_process_invalid_json(test_db: Session) -> None:
     """Test invalid JSON raises error."""
-    event = '{invalid json}'
+    event = "{invalid json}"
 
     with pytest.raises(json.JSONDecodeError):
         process_event(event, None, test_db)
@@ -478,8 +530,18 @@ def test_update_session_stats_all_passed(test_db: Session) -> None:
     test_db.commit()
 
     test_outcomes = {
-        "test1": {"call_outcome": "passed", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": False},
-        "test2": {"call_outcome": "passed", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": False},
+        "test1": {
+            "call_outcome": "passed",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": False,
+        },
+        "test2": {
+            "call_outcome": "passed",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": False,
+        },
     }
 
     _update_session_stats(session, test_outcomes)
@@ -498,9 +560,24 @@ def test_update_session_stats_mixed_outcomes(test_db: Session) -> None:
     test_db.commit()
 
     test_outcomes = {
-        "test1": {"call_outcome": "passed", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": False},
-        "test2": {"call_outcome": "failed", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": False},
-        "test3": {"call_outcome": "skipped", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": False},
+        "test1": {
+            "call_outcome": "passed",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": False,
+        },
+        "test2": {
+            "call_outcome": "failed",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": False,
+        },
+        "test3": {
+            "call_outcome": "skipped",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": False,
+        },
     }
 
     _update_session_stats(session, test_outcomes)
@@ -519,8 +596,18 @@ def test_update_session_stats_with_errors(test_db: Session) -> None:
     test_db.commit()
 
     test_outcomes = {
-        "test1": {"call_outcome": None, "has_setup_error": True, "has_teardown_error": False, "has_xfail_marker": False},
-        "test2": {"call_outcome": "passed", "has_setup_error": False, "has_teardown_error": True, "has_xfail_marker": False},
+        "test1": {
+            "call_outcome": None,
+            "has_setup_error": True,
+            "has_teardown_error": False,
+            "has_xfail_marker": False,
+        },
+        "test2": {
+            "call_outcome": "passed",
+            "has_setup_error": False,
+            "has_teardown_error": True,
+            "has_xfail_marker": False,
+        },
     }
 
     _update_session_stats(session, test_outcomes)
@@ -537,8 +624,18 @@ def test_update_session_stats_xfail_xpass(test_db: Session) -> None:
     test_db.commit()
 
     test_outcomes = {
-        "test1": {"call_outcome": "skipped", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": True},
-        "test2": {"call_outcome": "passed", "has_setup_error": False, "has_teardown_error": False, "has_xfail_marker": True},
+        "test1": {
+            "call_outcome": "skipped",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": True,
+        },
+        "test2": {
+            "call_outcome": "passed",
+            "has_setup_error": False,
+            "has_teardown_error": False,
+            "has_xfail_marker": True,
+        },
     }
 
     _update_session_stats(session, test_outcomes)

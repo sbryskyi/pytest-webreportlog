@@ -3,6 +3,7 @@
 Uses its own server process + database (separate from the shared session-scoped
 one) so that destructive pruning cannot affect other tests.
 """
+
 import json
 import subprocess
 import time
@@ -29,8 +30,14 @@ def isolated_client(tmp_path: Path) -> Generator[APIClient, None, None]:
     }
     process = subprocess.Popen(
         [
-            "uv", "run", "uvicorn", "webreportlog_server.main:app",
-            "--host", "127.0.0.1", "--port", str(PORT),
+            "uv",
+            "run",
+            "uvicorn",
+            "webreportlog_server.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(PORT),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -59,9 +66,14 @@ def _stream_big_session(client: APIClient, payload_bytes: int = 300_000) -> int:
     events = [
         {"pytest_version": "8.4.2", "$report_type": "SessionStart"},
         {
-            "nodeid": "t.py::test_big", "location": ["t.py", 1, "test_big"],
-            "keywords": {}, "outcome": "passed", "when": "call",
-            "duration": 0.1, "start": 1000.0, "stop": 1000.1,
+            "nodeid": "t.py::test_big",
+            "location": ["t.py", 1, "test_big"],
+            "keywords": {},
+            "outcome": "passed",
+            "when": "call",
+            "duration": 0.1,
+            "start": 1000.0,
+            "stop": 1000.1,
             "sections": [["Captured stdout call", big]],
             "$report_type": "TestReport",
         },
@@ -89,9 +101,9 @@ def test_prune_strips_logs_and_shows_notice(isolated_client: APIClient) -> None:
     assert report["under_cap"] is True
 
     # Size dropped on disk.
-    after = isolated_client.session.get(
-        f"{isolated_client.base_url}/api/stats"
-    ).json()["database"]["size_bytes"]
+    after = isolated_client.session.get(f"{isolated_client.base_url}/api/stats").json()[
+        "database"
+    ]["size_bytes"]
     assert after < before
 
     # Session still exists, big log gone, and the detail page shows the notice.

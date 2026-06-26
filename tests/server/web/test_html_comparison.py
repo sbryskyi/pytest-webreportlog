@@ -1,4 +1,5 @@
 """Tests comparing web server output with pytest-html reports."""
+
 import json
 import re
 import subprocess
@@ -168,9 +169,7 @@ def test_compare_with_pytest_html_exceptions(
     not (Path("test_sample") / "test_exceptions.py").exists(),
     reason="Requires test_sample directory",
 )
-def test_compare_teardown_error_handling(
-    api_client: APIClient, tmp_path: Path
-) -> None:
+def test_compare_teardown_error_handling(api_client: APIClient, tmp_path: Path) -> None:
     """Verify we handle teardown errors same as pytest-html.
 
     When test passes but teardown fails:
@@ -198,9 +197,7 @@ def test_compare_teardown_error_handling(
     not (Path("test_sample") / "test_exceptions.py").exists(),
     reason="Requires test_sample directory",
 )
-def test_session_statistics_match_pytest(
-    api_client: APIClient, tmp_path: Path
-) -> None:
+def test_session_statistics_match_pytest(api_client: APIClient, tmp_path: Path) -> None:
     """Verify session statistics match pytest's output."""
     result, session_id = _run_pytest_streaming(
         api_client, "test_sample/test_exceptions.py"

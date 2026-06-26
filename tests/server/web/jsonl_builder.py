@@ -21,6 +21,7 @@ Example usage:
         .build()
     )
 """
+
 import json
 from typing import Any
 
@@ -119,10 +120,12 @@ class JSONLBuilder:
 
     def session_start(self, pytest_version: str = "8.4.2") -> "JSONLBuilder":
         """Add SessionStart record."""
-        self._records.append({
-            "pytest_version": pytest_version,
-            "$report_type": "SessionStart",
-        })
+        self._records.append(
+            {
+                "pytest_version": pytest_version,
+                "$report_type": "SessionStart",
+            }
+        )
         return self
 
     def test(self, nodeid: str) -> TestBuilder:
@@ -131,10 +134,12 @@ class JSONLBuilder:
 
     def session_finish(self, exitstatus: int = 0) -> "JSONLBuilder":
         """Add SessionFinish record."""
-        self._records.append({
-            "exitstatus": exitstatus,
-            "$report_type": "SessionFinish",
-        })
+        self._records.append(
+            {
+                "exitstatus": exitstatus,
+                "$report_type": "SessionFinish",
+            }
+        )
         return self
 
     def build(self) -> str:
@@ -142,7 +147,9 @@ class JSONLBuilder:
         return "\n".join(json.dumps(r) for r in self._records) + "\n"
 
 
-def simple_test(nodeid: str = "test_sample.py::test_pass", outcome: str = "passed") -> str:
+def simple_test(
+    nodeid: str = "test_sample.py::test_pass", outcome: str = "passed"
+) -> str:
     """Create JSONL for a simple test with given outcome."""
     builder = JSONLBuilder()
     test = builder.session_start().test(nodeid).setup()
@@ -153,14 +160,22 @@ def simple_test(nodeid: str = "test_sample.py::test_pass", outcome: str = "passe
         test.call(
             outcome="failed",
             longrepr={
-                "reprcrash": {"path": "test.py", "lineno": 1, "message": "AssertionError"},
+                "reprcrash": {
+                    "path": "test.py",
+                    "lineno": 1,
+                    "message": "AssertionError",
+                },
                 "reprtraceback": {"reprentries": []},
             },
         )
     elif outcome == "skipped":
         test.call(outcome="skipped")
 
-    return test.teardown().session_finish(exitstatus=0 if outcome == "passed" else 1).build()
+    return (
+        test.teardown()
+        .session_finish(exitstatus=0 if outcome == "passed" else 1)
+        .build()
+    )
 
 
 def xfail_test(nodeid: str = "test_sample.py::test_xfail", passes: bool = False) -> str:
@@ -172,13 +187,7 @@ def xfail_test(nodeid: str = "test_sample.py::test_xfail", passes: bool = False)
                 If False, creates xfail (expected to fail and does fail).
     """
     builder = JSONLBuilder()
-    test = (
-        builder
-        .session_start()
-        .test(nodeid)
-        .keywords(xfail=1)
-        .setup()
-    )
+    test = builder.session_start().test(nodeid).keywords(xfail=1).setup()
 
     if passes:
         # xpass: expected to fail but passes

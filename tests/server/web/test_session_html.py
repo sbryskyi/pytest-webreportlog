@@ -1,4 +1,5 @@
 """Tests for session HTML rendering: test names, labels, tracebacks, statistics."""
+
 from .conftest import APIClient
 
 
@@ -206,21 +207,30 @@ def test_env_metadata_shown_in_session_html(api_client: APIClient) -> None:
 
     session_uuid = uuid.uuid4().hex
     events = [
-        json.dumps({
-            "$report_type": "SessionStart",
-            "pytest_version": "9.0.0",
-            "metadata": {
-                "Python": "3.13.0",
-                "Platform": "Linux-6.8.0-x86_64",
-                "Packages": {"pytest": "9.0.0", "pluggy": "1.6.0"},
-                "CI": "true",
-            },
-        }),
-        json.dumps({
-            "nodeid": "test_meta.py::test_pass", "location": ["test_meta.py", 1, "test_pass"],
-            "keywords": {}, "outcome": "passed", "longrepr": None,
-            "when": "call", "duration": 0.01, "$report_type": "TestReport",
-        }),
+        json.dumps(
+            {
+                "$report_type": "SessionStart",
+                "pytest_version": "9.0.0",
+                "metadata": {
+                    "Python": "3.13.0",
+                    "Platform": "Linux-6.8.0-x86_64",
+                    "Packages": {"pytest": "9.0.0", "pluggy": "1.6.0"},
+                    "CI": "true",
+                },
+            }
+        ),
+        json.dumps(
+            {
+                "nodeid": "test_meta.py::test_pass",
+                "location": ["test_meta.py", 1, "test_pass"],
+                "keywords": {},
+                "outcome": "passed",
+                "longrepr": None,
+                "when": "call",
+                "duration": 0.01,
+                "$report_type": "TestReport",
+            }
+        ),
         json.dumps({"exitstatus": 0, "$report_type": "SessionFinish"}),
     ]
 

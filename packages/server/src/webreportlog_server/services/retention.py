@@ -10,10 +10,11 @@ drops below the cap.
 
 The newest ``keep_recent`` sessions and any in-progress session are never touched.
 """
+
 import logging
 
 from sqlalchemy import delete, func, update
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from ..database import get_database_size_bytes, vacuum
 from ..models import Session as TestSession
@@ -62,14 +63,14 @@ def _eligible_sessions(db: Session, keep_recent: int) -> list[TestSession]:
     protected_ids = set(
         db.exec(
             select(TestSession.id)
-            .order_by(TestSession.created_at.desc())
+            .order_by(col(TestSession.created_at).desc())
             .limit(max(keep_recent, 0))
         ).all()
     )
     sessions = db.exec(
         select(TestSession)
-        .where(TestSession.status != SessionStatus.IN_PROGRESS.value)
-        .order_by(TestSession.created_at.asc())
+        .where(col(TestSession.status) != SessionStatus.IN_PROGRESS.value)
+        .order_by(col(TestSession.created_at).asc())
     ).all()
     return [s for s in sessions if s.id not in protected_ids]
 
@@ -79,7 +80,11 @@ def prune_database(db: Session, max_bytes: int, keep_recent: int = 10) -> dict:
     before = get_database_size_bytes()
     if before is None:
         return _report(
-            max_bytes, None, None, [], [],
+            max_bytes,
+            None,
+            None,
+            [],
+            [],
             "Database size is unknown (not a file-backed database).",
         )
     if before <= max_bytes:
@@ -94,12 +99,13 @@ def prune_database(db: Session, max_bytes: int, keep_recent: int = 10) -> dict:
     for session in eligible:
         if over <= 0:
             break
+        assert session.id is not None  # persisted sessions always have an id
         freed = _strippable_bytes(db, session.id)
         if freed <= 0:
             continue
         db.exec(
             update(TestReport)
-            .where(TestReport.session_id == session.id)
+            .where(col(TestReport.session_id) == session.id)
             .values(longrepr=None, sections=[])
         )
         session.logs_pruned = True
@@ -116,8 +122,9 @@ def prune_database(db: Session, max_bytes: int, keep_recent: int = 10) -> dict:
         for session in eligible:
             if over <= 0:
                 break
+            assert session.id is not None  # persisted sessions always have an id
             over -= _session_bytes(db, session.id)
-            db.exec(delete(TestReport).where(TestReport.session_id == session.id))
+            db.exec(delete(TestReport).where(col(TestReport.session_id) == session.id))
             db.delete(session)
             deleted.append(session.id)
         db.commit()

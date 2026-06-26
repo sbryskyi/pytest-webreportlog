@@ -1,4 +1,5 @@
 """Tests for session API endpoints: stream, list, delete, get."""
+
 from .conftest import APIClient
 
 
@@ -8,7 +9,9 @@ def test_server_is_running(api_client: APIClient) -> None:
     assert "webreportlog" in html
 
 
-def test_upload_simple_passing(api_client: APIClient, simple_passing_jsonl: str) -> None:
+def test_upload_simple_passing(
+    api_client: APIClient, simple_passing_jsonl: str
+) -> None:
     """Test uploading a simple passing test."""
     result = api_client.stream_jsonl(simple_passing_jsonl)
 
@@ -20,7 +23,9 @@ def test_upload_simple_passing(api_client: APIClient, simple_passing_jsonl: str)
     assert result["errors"] == 0
 
 
-def test_upload_mixed_outcomes(api_client: APIClient, mixed_outcomes_jsonl: str) -> None:
+def test_upload_mixed_outcomes(
+    api_client: APIClient, mixed_outcomes_jsonl: str
+) -> None:
     """Test uploading tests with mixed outcomes."""
     result = api_client.stream_jsonl(mixed_outcomes_jsonl)
 

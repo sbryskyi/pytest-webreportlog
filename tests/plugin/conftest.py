@@ -3,6 +3,7 @@
 Provides a lightweight in-process HTTP server that captures the events the
 plugin streams, so plugin behavior can be asserted without the real viewer.
 """
+
 import contextlib
 import json
 import socket

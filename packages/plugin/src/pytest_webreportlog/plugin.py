@@ -9,6 +9,7 @@ The transport uses only the standard library, so the published distribution
 depends on nothing but pytest. All network activity is fail-soft: if the viewer
 is unreachable the test run is never interrupted.
 """
+
 import copy
 import json
 import platform
@@ -24,6 +25,7 @@ import pytest
 
 class WebReportLogWarning(UserWarning):
     """Emitted once when streaming events to the viewer fails."""
+
 
 # Captured-log section labels (one per phase), used by the
 # --webreportlog-exclude-logs-on-passed option.
@@ -73,7 +75,8 @@ def pytest_configure(config: pytest.Config) -> None:
             timeout=config.option.webreportlog_timeout,
             exclude_logs_on_passed=config.option.webreportlog_exclude_logs_on_passed,
         )
-        config._webreportlog_plugin = plugin
+        # Dynamic attribute stashed on pytest's Config (mirrors upstream pattern).
+        config._webreportlog_plugin = plugin  # type: ignore[attr-defined]
         config.pluginmanager.register(plugin)
 
 
@@ -81,7 +84,7 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     plugin = getattr(config, "_webreportlog_plugin", None)
     if plugin is not None:
         config.pluginmanager.unregister(plugin)
-        del config._webreportlog_plugin
+        del config._webreportlog_plugin  # type: ignore[attr-defined]
 
 
 def _normalize_endpoint(base_url: str) -> str:
@@ -181,7 +184,9 @@ class WebReportLogPlugin:
 
         if self._exclude_logs_on_passed and data.get("outcome") == "passed":
             data["sections"] = [
-                s for s in data.get("sections", []) if s[0] not in _CAPTURED_LOG_SECTIONS
+                s
+                for s in data.get("sections", [])
+                if s[0] not in _CAPTURED_LOG_SECTIONS
             ]
 
         self._post(data)

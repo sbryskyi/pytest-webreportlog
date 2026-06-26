@@ -1,6 +1,7 @@
-import pytest
 import logging
 import time
+
+import pytest
 
 
 @pytest.fixture
@@ -18,4 +19,3 @@ def test_pass(setup_teardown):
     print("Call print")
     time.sleep(0.13)
     logging.warning("Call log")
-

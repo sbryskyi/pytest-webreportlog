@@ -1,9 +1,10 @@
 """Session-related routes."""
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from ..database import (
     get_configured_keep_recent,
@@ -24,9 +25,11 @@ from ..utils import format_size, parse_size
 
 class PruneRequest(BaseModel):
     """Optional overrides for a manual prune; falls back to env configuration."""
+
     max_size: str | None = None
     max_size_bytes: int | None = None
     keep_recent: int | None = None
+
 
 router = APIRouter()
 
@@ -34,30 +37,28 @@ router = APIRouter()
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, db: Session = Depends(get_db_session)):
     """Show list of all test sessions."""
-    statement = select(TestSession).order_by(TestSession.created_at.desc())
+    statement = select(TestSession).order_by(col(TestSession.created_at).desc())
     sessions = db.exec(statement).all()
 
     return templates.TemplateResponse(
-        request,
-        "index.html",
-        {"request": request, "sessions": sessions}
+        request, "index.html", {"request": request, "sessions": sessions}
     )
 
 
 @router.get("/sessions/{session_id}", response_class=HTMLResponse)
 async def view_session(
-    request: Request,
-    session_id: int,
-    db: Session = Depends(get_db_session)
+    request: Request, session_id: int, db: Session = Depends(get_db_session)
 ):
     """Show detailed view of a specific test session."""
     session = db.get(TestSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    statement = select(TestReport).where(
-        TestReport.session_id == session_id
-    ).order_by(TestReport.nodeid, TestReport.when)
+    statement = (
+        select(TestReport)
+        .where(TestReport.session_id == session_id)
+        .order_by(TestReport.nodeid, TestReport.when)
+    )
 
     test_reports = db.exec(statement).all()
 
@@ -66,18 +67,14 @@ async def view_session(
     return templates.TemplateResponse(
         request,
         "session.html",
-        {
-            "request": request,
-            "session": session,
-            "test_entries": test_entries
-        }
+        {"request": request, "session": session, "test_entries": test_entries},
     )
 
 
 @router.get("/api/sessions")
 async def list_sessions(db: Session = Depends(get_db_session)):
     """API endpoint to list all sessions."""
-    statement = select(TestSession).order_by(TestSession.created_at.desc())
+    statement = select(TestSession).order_by(col(TestSession.created_at).desc())
     sessions = db.exec(statement).all()
     return sessions
 
@@ -143,7 +140,9 @@ def prune(
         )
 
     keep_recent = (
-        body.keep_recent if body.keep_recent is not None else get_configured_keep_recent()
+        body.keep_recent
+        if body.keep_recent is not None
+        else get_configured_keep_recent()
     )
     return prune_database(db, max_bytes, keep_recent)
 
@@ -165,18 +164,19 @@ async def delete_session(session_id: int, db: Session = Depends(get_db_session))
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    db.exec(delete(TestReport).where(TestReport.session_id == session_id))
+    db.exec(delete(TestReport).where(col(TestReport.session_id) == session_id))
     db.delete(session)
     db.commit()
 
-    return {"status": "success", "message": f"Session {session_id} deleted successfully"}
+    return {
+        "status": "success",
+        "message": f"Session {session_id} deleted successfully",
+    }
 
 
 @router.get("/api/sessions/{session_id}/test-entries", response_class=HTMLResponse)
 async def get_test_entries_html(
-    request: Request,
-    session_id: int,
-    db: Session = Depends(get_db_session)
+    request: Request, session_id: int, db: Session = Depends(get_db_session)
 ):
     """API endpoint to get rendered HTML for test entries.
 
@@ -187,9 +187,11 @@ async def get_test_entries_html(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Get all test reports for this session
-    statement = select(TestReport).where(
-        TestReport.session_id == session_id
-    ).order_by(TestReport.nodeid, TestReport.when)
+    statement = (
+        select(TestReport)
+        .where(TestReport.session_id == session_id)
+        .order_by(TestReport.nodeid, TestReport.when)
+    )
 
     test_reports = db.exec(statement).all()
 
@@ -197,7 +199,5 @@ async def get_test_entries_html(
     test_entries = build_test_entries(test_reports)
 
     return templates.TemplateResponse(
-        request,
-        "_test_entry.html",
-        {"request": request, "test_entries": test_entries}
+        request, "_test_entry.html", {"request": request, "test_entries": test_entries}
     )

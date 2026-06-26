@@ -1,4 +1,5 @@
 """Streaming event processor for real-time test results."""
+
 import json
 from typing import Any
 
@@ -19,7 +20,9 @@ from .utils import (
 active_sessions: dict[int, dict[str, Any]] = {}
 
 
-def process_event(event_line: str, session_id: int | None, db: Session) -> tuple[TestSession | None, str]:
+def process_event(
+    event_line: str, session_id: int | None, db: Session
+) -> tuple[TestSession | None, str]:
     """Process a single streamed event line.
 
     Args:
@@ -53,6 +56,7 @@ def process_event(event_line: str, session_id: int | None, db: Session) -> tuple
             db.commit()
             db.refresh(session)
             # Initialize tracking for this session
+            assert session.id is not None  # set by the DB after commit/refresh
             active_sessions[session.id] = {
                 "test_outcomes": {},
                 "min_start": None,
@@ -90,6 +94,7 @@ def process_event(event_line: str, session_id: int | None, db: Session) -> tuple
         session = db.get(TestSession, session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
+        assert session.id is not None  # a persisted session always has an id
 
         nodeid = record.get("nodeid", "")
         when = record.get("when", "")
@@ -147,7 +152,7 @@ def process_event(event_line: str, session_id: int | None, db: Session) -> tuple
             session,
             session_data["test_outcomes"],
             session_data["min_start"],
-            session_data["max_stop"]
+            session_data["max_stop"],
         )
         session.updated_at = get_current_utc_time()
 
@@ -176,7 +181,7 @@ def _update_session_stats(
     session: TestSession,
     test_outcomes: dict[str, Any],
     min_start: float | None = None,
-    max_stop: float | None = None
+    max_stop: float | None = None,
 ):
     """Update session summary statistics based on test outcomes and calculate duration."""
     # Use shared calculation utility

@@ -1,4 +1,5 @@
 """CLI for the webreportlog web viewer service."""
+
 import os
 import signal
 import sys
@@ -260,11 +261,17 @@ def dev(
 def prune(
     max_size: Annotated[
         str | None,
-        typer.Option("--max-size", help="Size cap, e.g. '2GB' (default: WEBREPORTLOG_MAX_DB_SIZE)"),
+        typer.Option(
+            "--max-size",
+            help="Size cap, e.g. '2GB' (default: WEBREPORTLOG_MAX_DB_SIZE)",
+        ),
     ] = None,
     keep_recent: Annotated[
         int | None,
-        typer.Option("--keep-recent", help="Newest sessions to never prune (default: WEBREPORTLOG_KEEP_RECENT or 10)"),
+        typer.Option(
+            "--keep-recent",
+            help="Newest sessions to never prune (default: WEBREPORTLOG_KEEP_RECENT or 10)",
+        ),
     ] = None,
 ) -> None:
     """Shrink the database to fit under a size cap.
@@ -280,6 +287,7 @@ def prune(
     from .services.retention import prune_database
     from .utils import parse_size
 
+    max_bytes: int | None
     if max_size is not None:
         try:
             max_bytes = parse_size(max_size)

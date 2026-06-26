@@ -1,4 +1,5 @@
 """Utilities for parsing and validating pytest reports."""
+
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -26,7 +27,9 @@ def parse_jsonl(file_path: Path) -> list[dict[str, Any]]:
 
 def get_jsonl_report_types(records: list[dict]) -> set[str]:
     """Extract all report types from JSONL records."""
-    return {record.get("$report_type") for record in records if "$report_type" in record}
+    return {
+        record.get("$report_type") for record in records if "$report_type" in record
+    }
 
 
 def get_jsonl_test_reports(records: list[dict]) -> list[dict]:

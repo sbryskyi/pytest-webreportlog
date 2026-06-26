@@ -1,4 +1,5 @@
 """Jinja2 templates configuration and custom filters."""
+
 import logging
 from pathlib import Path
 
@@ -28,7 +29,9 @@ def ansi_to_html(text: str | None) -> str | Markup:
         html = _ansi_converter.convert(text, full=False)
         return Markup(html)
     except Exception as e:
-        logger.error(f"Error in ansi_to_html: {e}, type: {type(text)}, value: {repr(text)[:100]}")
+        logger.error(
+            f"Error in ansi_to_html: {e}, type: {type(text)}, value: {repr(text)[:100]}"
+        )
         return str(text) if text is not None else ""
 
 

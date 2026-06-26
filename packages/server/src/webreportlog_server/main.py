@@ -1,4 +1,5 @@
 """FastAPI application for the webreportlog web viewer service."""
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -34,7 +35,9 @@ def _mark_stale_sessions_interrupted() -> None:
 
     with Session(engine) as db:
         stale = db.exec(
-            select(TestSession).where(TestSession.status == SessionStatus.IN_PROGRESS.value)
+            select(TestSession).where(
+                TestSession.status == SessionStatus.IN_PROGRESS.value
+            )
         ).all()
         for session in stale:
             session.status = SessionStatus.INTERRUPTED.value

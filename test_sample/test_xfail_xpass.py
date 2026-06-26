@@ -1,5 +1,7 @@
 """Test file with xfail and xpass outcomes for comparison testing."""
+
 import pytest
+
 
 @pytest.fixture
 def failing_setup():

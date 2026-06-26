@@ -1,10 +1,11 @@
 """History-related routes."""
-from typing import Literal
+
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import case, func
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from ..database import get_session as get_db_session
 from ..models import Session as TestSession
@@ -36,8 +37,8 @@ def _get_latest_test_results(db: Session) -> dict:
         select(TestReport)
         .join(
             latest_subq,
-            (TestReport.nodeid == latest_subq.c.nodeid)
-            & (TestReport.session_id == latest_subq.c.max_session_id),
+            (col(TestReport.nodeid) == latest_subq.c.nodeid)
+            & (col(TestReport.session_id) == latest_subq.c.max_session_id),
         )
         .where(TestReport.when == "call")
     )
@@ -80,17 +81,21 @@ async def view_all_history(
     request: Request,
     sort_by: str = "nodeid",
     sort_dir: Literal["asc", "desc"] = "asc",
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     """Show overview of all tests with aggregated statistics."""
     # Get all unique nodeids with aggregated stats
     statement = (
-        select(
-            TestReport.nodeid,
+        # SQLModel's select() overloads only cover up to 4 columns; this query
+        # selects 5, so the call falls outside the typed overloads.
+        select(  # type: ignore[call-overload]
+            col(TestReport.nodeid),
             func.count(func.distinct(TestReport.session_id)).label("total_runs"),
-            func.sum(case((TestReport.outcome == "passed", 1), else_=0)).label("passed_runs"),
+            func.sum(case((col(TestReport.outcome) == "passed", 1), else_=0)).label(
+                "passed_runs"
+            ),
             func.avg(TestReport.duration).label("avg_call_duration"),
-            func.max(TestSession.created_at).label("last_run")
+            func.max(TestSession.created_at).label("last_run"),
         )
         .join(TestSession)
         .where(TestReport.when == "call")
@@ -98,18 +103,23 @@ async def view_all_history(
     )
 
     # Apply sorting
+    order_col: Any
     if sort_by == "nodeid":
-        order_col = TestReport.nodeid
+        order_col = col(TestReport.nodeid)
     elif sort_by == "total_runs":
         order_col = func.count(func.distinct(TestReport.session_id))
     elif sort_by == "pass_rate":
-        order_col = func.sum(case((TestReport.outcome == "passed", 1), else_=0)) * 100.0 / func.count(func.distinct(TestReport.session_id))
+        order_col = (
+            func.sum(case((col(TestReport.outcome) == "passed", 1), else_=0))
+            * 100.0
+            / func.count(func.distinct(TestReport.session_id))
+        )
     elif sort_by == "avg_duration":
         order_col = func.avg(TestReport.duration)
     elif sort_by == "last_run":
         order_col = func.max(TestSession.created_at)
     else:
-        order_col = TestReport.nodeid
+        order_col = col(TestReport.nodeid)
 
     if sort_dir == "desc":
         statement = statement.order_by(order_col.desc())
@@ -139,16 +149,18 @@ async def view_all_history(
             location = ["", 0, ""]
             result_label = "UNKNOWN"
 
-        test_summaries.append({
-            "nodeid": nodeid,
-            "location": location,
-            "total_runs": total_runs,
-            "passed_runs": passed_runs,
-            "pass_rate": pass_rate,
-            "avg_duration": avg_call_duration,
-            "last_run": last_run,
-            "latest_result": result_label,
-        })
+        test_summaries.append(
+            {
+                "nodeid": nodeid,
+                "location": location,
+                "total_runs": total_runs,
+                "passed_runs": passed_runs,
+                "pass_rate": pass_rate,
+                "avg_duration": avg_call_duration,
+                "last_run": last_run,
+                "latest_result": result_label,
+            }
+        )
 
     return templates.TemplateResponse(
         request,
@@ -158,15 +170,13 @@ async def view_all_history(
             "test_summaries": test_summaries,
             "sort_by": sort_by,
             "sort_dir": sort_dir,
-        }
+        },
     )
 
 
 @router.get("/history/{nodeid:path}", response_class=HTMLResponse)
 async def view_history(
-    request: Request,
-    nodeid: str,
-    db: Session = Depends(get_db_session)
+    request: Request, nodeid: str, db: Session = Depends(get_db_session)
 ):
     """Show historical test results for a specific test across all sessions."""
     # Query all test reports for this nodeid across all sessions
@@ -174,21 +184,24 @@ async def view_history(
         select(TestReport, TestSession)
         .join(TestSession)
         .where(TestReport.nodeid == nodeid)
-        .order_by(TestSession.created_at.desc(), TestReport.when)
+        .order_by(col(TestSession.created_at).desc(), TestReport.when)
     )
 
     results = db.exec(statement).all()
 
     if not results:
-        raise HTTPException(status_code=404, detail=f"No test history found for {nodeid}")
+        raise HTTPException(
+            status_code=404, detail=f"No test history found for {nodeid}"
+        )
 
     # Get location from first report
     first_report = results[0][0]
     location = first_report.location
 
     # Group by session and aggregate phases
-    session_runs = {}
+    session_runs: dict[int, dict[str, Any]] = {}
     for report, session in results:
+        assert session.id is not None  # persisted sessions always have an id
         if session.id not in session_runs:
             session_runs[session.id] = {
                 "session": session,
@@ -200,7 +213,12 @@ async def view_history(
 
     # Build history entries with aggregated data
     history_entries = []
-    all_durations = {"setup": [], "call": [], "teardown": [], "total": []}
+    all_durations: dict[str, list[float]] = {
+        "setup": [],
+        "call": [],
+        "teardown": [],
+        "total": [],
+    }
 
     for run in session_runs.values():
         session = run["session"]
@@ -216,28 +234,33 @@ async def view_history(
 
         # Determine outcome from call phase using shared utility
         if call_report:
-            result_label, outcome = determine_test_outcome(call_report.outcome, call_report.keywords)
+            result_label, outcome = determine_test_outcome(
+                call_report.outcome, call_report.keywords
+            )
         else:
             outcome = "unknown"
             result_label = "UNKNOWN"
 
         # Check for setup/teardown errors
-        has_error = (setup_report and setup_report.outcome == "failed") or \
-                   (teardown_report and teardown_report.outcome == "failed")
+        has_error = (setup_report and setup_report.outcome == "failed") or (
+            teardown_report and teardown_report.outcome == "failed"
+        )
 
-        history_entries.append({
-            "session": session,
-            "outcome": outcome,
-            "result_label": result_label,
-            "has_error": has_error,
-            "setup_duration": setup_duration,
-            "call_duration": call_duration,
-            "teardown_duration": teardown_duration,
-            "total_duration": total_duration,
-            "setup_report": setup_report,
-            "call_report": call_report,
-            "teardown_report": teardown_report,
-        })
+        history_entries.append(
+            {
+                "session": session,
+                "outcome": outcome,
+                "result_label": result_label,
+                "has_error": has_error,
+                "setup_duration": setup_duration,
+                "call_duration": call_duration,
+                "teardown_duration": teardown_duration,
+                "total_duration": total_duration,
+                "setup_report": setup_report,
+                "call_report": call_report,
+                "teardown_report": teardown_report,
+            }
+        )
 
         # Track all durations for stats calculation
         all_durations["setup"].append(setup_duration)
@@ -250,7 +273,9 @@ async def view_history(
     passed_runs = sum(1 for e in history_entries if e["outcome"] == "passed")
     pass_rate = (passed_runs / total_runs * 100) if total_runs > 0 else 0
 
-    avg_durations, max_durations, min_durations = _calculate_duration_stats(all_durations)
+    avg_durations, max_durations, min_durations = _calculate_duration_stats(
+        all_durations
+    )
 
     return templates.TemplateResponse(
         request,
@@ -266,5 +291,5 @@ async def view_history(
             "avg_durations": avg_durations,
             "max_durations": max_durations,
             "min_durations": min_durations,
-        }
+        },
     )

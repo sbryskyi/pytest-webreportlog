@@ -1,4 +1,5 @@
 """Test file with strict xfail scenarios for comparison testing."""
+
 import pytest
 
 

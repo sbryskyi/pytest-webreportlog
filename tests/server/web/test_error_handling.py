@@ -1,4 +1,5 @@
 """Tests for error handling: invalid inputs, not found, edge cases."""
+
 import urllib.parse
 import uuid
 

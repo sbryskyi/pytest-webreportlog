@@ -1,4 +1,5 @@
 """Tests for test history feature: overview page and individual test history."""
+
 from .conftest import APIClient
 
 # ============================================================================

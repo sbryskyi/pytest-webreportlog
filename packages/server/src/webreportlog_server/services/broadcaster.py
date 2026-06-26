@@ -1,4 +1,5 @@
 """Event broadcasting service for SSE updates."""
+
 import asyncio
 import logging
 
@@ -13,7 +14,7 @@ class EventBroadcaster:
 
     def subscribe(self, session_id: int) -> asyncio.Queue:
         """Subscribe to updates for a session."""
-        queue = asyncio.Queue()
+        queue: asyncio.Queue = asyncio.Queue()
         if session_id not in self.channels:
             self.channels[session_id] = set()
         self.channels[session_id].add(queue)

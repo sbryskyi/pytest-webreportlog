@@ -1,4 +1,5 @@
 """Unit tests for the retention/prune service, schema migration, and CLI."""
+
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -23,21 +24,32 @@ def temp_engine(tmp_path, monkeypatch):
     return engine
 
 
-def _seed(db: Session, created_at: datetime, payload_kb: int = 200,
-          status: str = "completed", reports: int = 1) -> int:
+def _seed(
+    db: Session,
+    created_at: datetime,
+    payload_kb: int = 200,
+    status: str = "completed",
+    reports: int = 1,
+) -> int:
     session = TestSession(status=status, created_at=created_at, updated_at=created_at)
     db.add(session)
     db.commit()
     db.refresh(session)
     half = payload_kb * 1024 // 2
     for i in range(reports):
-        db.add(TestReport(
-            session_id=session.id, nodeid=f"t.py::test_{session.id}_{i}",
-            location=["t.py", 1, "x"], keywords={}, when="call",
-            outcome="passed", duration=0.1,
-            longrepr="L" * half,
-            sections=[["Captured stdout call", "S" * half]],
-        ))
+        db.add(
+            TestReport(
+                session_id=session.id,
+                nodeid=f"t.py::test_{session.id}_{i}",
+                location=["t.py", 1, "x"],
+                keywords={},
+                when="call",
+                outcome="passed",
+                duration=0.1,
+                longrepr="L" * half,
+                sections=[["Captured stdout call", "S" * half]],
+            )
+        )
     db.commit()
     return session.id
 
@@ -57,9 +69,13 @@ def test_prune_strips_oldest_and_protects_recent(temp_engine):
     assert database.get_database_size_bytes() < before
 
     with Session(temp_engine) as db:
-        oldest = db.exec(select(TestReport).where(TestReport.session_id == ids[0])).all()
+        oldest = db.exec(
+            select(TestReport).where(TestReport.session_id == ids[0])
+        ).all()
         assert all(r.longrepr is None and r.sections == [] for r in oldest)
-        newest = db.exec(select(TestReport).where(TestReport.session_id == ids[4])).all()
+        newest = db.exec(
+            select(TestReport).where(TestReport.session_id == ids[4])
+        ).all()
         assert all(r.longrepr for r in newest)
         assert db.get(TestSession, ids[0]).logs_pruned is True
         assert db.get(TestSession, ids[4]).logs_pruned is False
@@ -137,7 +153,9 @@ def test_cli_prune_runs(temp_engine):
         _seed(db, BASE)
         _seed(db, BASE + timedelta(hours=1))
 
-    result = CliRunner().invoke(app, ["prune", "--max-size", "100KB", "--keep-recent", "0"])
+    result = CliRunner().invoke(
+        app, ["prune", "--max-size", "100KB", "--keep-recent", "0"]
+    )
     assert result.exit_code == 0, result.output
     assert "Database:" in result.output
 

@@ -2,6 +2,7 @@
 
 Common cross-format tests (exceptions, logs, xfail) are in test_all_formats.py.
 """
+
 from pytest import Pytester
 
 from .report_utils import (
@@ -32,7 +33,11 @@ def test_html_is_self_contained(
 
     # Self-contained HTML should have CSS and JS embedded (not external references)
     # Modern pytest-html uses inline styles and scripts
-    assert "<style>" in html_content or "style=" in html_content or "<script>" in html_content
+    assert (
+        "<style>" in html_content
+        or "style=" in html_content
+        or "<script>" in html_content
+    )
     # File should be reasonably large if self-contained (has inline assets)
     assert len(html_content) > 1000, "Self-contained HTML should be substantial in size"
 
@@ -62,10 +67,12 @@ def test_html_shows_passed_tests(
     # Should contain indication of passed tests
     assert html_contains_text(html_content, "test_pass")
     # Common indicators for passed tests
-    assert ("passed" in html_content.lower() or
-            "success" in html_content.lower() or
-            "✓" in html_content or
-            "✔" in html_content)
+    assert (
+        "passed" in html_content.lower()
+        or "success" in html_content.lower()
+        or "✓" in html_content
+        or "✔" in html_content
+    )
 
 
 def test_html_summary_section(
@@ -80,4 +87,6 @@ def test_html_summary_section(
     # Should contain some form of summary
     assert "2" in html_content  # Number of tests
     # Common summary indicators
-    assert any(word in html_content.lower() for word in ["summary", "results", "report"])
+    assert any(
+        word in html_content.lower() for word in ["summary", "results", "report"]
+    )

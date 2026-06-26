@@ -1,4 +1,5 @@
 """Verify the two distributions keep their dependency sets isolated."""
+
 import importlib.metadata as metadata
 import re
 

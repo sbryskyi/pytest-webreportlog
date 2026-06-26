@@ -1,4 +1,5 @@
 """Database configuration and session management."""
+
 import contextlib
 import os
 import sqlite3

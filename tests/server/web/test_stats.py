@@ -1,4 +1,5 @@
 """Tests for the /api/stats endpoint and the database-size footer display."""
+
 from .conftest import APIClient
 
 
@@ -22,9 +23,9 @@ def test_footer_shows_database_size(api_client: APIClient) -> None:
     html = api_client.get_index_html()
     assert "Database:" in html
     # The human-readable size from the API should appear in the footer.
-    size_human = api_client.session.get(
-        f"{api_client.base_url}/api/stats"
-    ).json()["database"]["size_human"]
+    size_human = api_client.session.get(f"{api_client.base_url}/api/stats").json()[
+        "database"
+    ]["size_human"]
     assert size_human in html
 
 
@@ -43,7 +44,9 @@ def test_prune_requires_a_cap(api_client: APIClient) -> None:
     assert resp.status_code == 400
 
 
-def test_prune_noop_under_huge_cap(api_client: APIClient, simple_passing_jsonl: str) -> None:
+def test_prune_noop_under_huge_cap(
+    api_client: APIClient, simple_passing_jsonl: str
+) -> None:
     """A cap far above the current size is a safe no-op with a clear report."""
     api_client.stream_jsonl(simple_passing_jsonl)
     resp = api_client.session.post(

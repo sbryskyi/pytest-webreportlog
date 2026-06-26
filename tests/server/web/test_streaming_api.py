@@ -1,4 +1,5 @@
 """Tests for streaming API endpoints: real-time event processing."""
+
 import json
 import uuid
 

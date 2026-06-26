@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test SSE (Server-Sent Events) functionality."""
+
 import json
 import subprocess
 import threading
@@ -23,10 +24,10 @@ def subscribe_to_sse(session_id, events_received):
                 events_received.append(line)
 
                 # Check if session finished
-                if line.startswith('data: '):
+                if line.startswith("data: "):
                     try:
                         data = json.loads(line[6:])  # Remove 'data: ' prefix
-                        if data.get('type') == 'session_finish':
+                        if data.get("type") == "session_finish":
                             print("[SSE] Session finished, closing connection")
                             break
                     except json.JSONDecodeError:
@@ -43,14 +44,16 @@ def run_pytest():
 
     result = subprocess.run(
         [
-            "uv", "run", "pytest",
+            "uv",
+            "run",
+            "pytest",
             "test_sample/test_module_a.py::test_pass",
             "-v",
-            "--webreportlog-url=http://127.0.0.1:8006"
+            "--webreportlog-url=http://127.0.0.1:8006",
         ],
         cwd="/home/sergii/p/pytest-webreportlog",
         capture_output=True,
-        text=True
+        text=True,
     )
 
     print(f"[PYTEST] Exit code: {result.returncode}")
@@ -69,14 +72,16 @@ def main():
     print("\n[STEP 1] Creating initial session to get session ID...")
     subprocess.run(
         [
-            "uv", "run", "pytest",
+            "uv",
+            "run",
+            "pytest",
             "test_sample/test_module_a.py::test_pass",
             "-v",
-            "--webreportlog-url=http://127.0.0.1:8006"
+            "--webreportlog-url=http://127.0.0.1:8006",
         ],
         cwd="/home/sergii/p/pytest-webreportlog",
         capture_output=True,
-        text=True
+        text=True,
     )
 
     # Get the session ID from API
@@ -87,14 +92,13 @@ def main():
         print("[ERROR] No sessions found!")
         return
 
-    next_session_id = max(s['id'] for s in sessions) + 1
+    next_session_id = max(s["id"] for s in sessions) + 1
     print(f"\n[STEP 2] Next session will be ID {next_session_id}")
 
     # Start SSE subscriber in background
     events_received = []
     sse_thread = threading.Thread(
-        target=subscribe_to_sse,
-        args=(next_session_id, events_received)
+        target=subscribe_to_sse, args=(next_session_id, events_received)
     )
     sse_thread.daemon = True
     sse_thread.start()

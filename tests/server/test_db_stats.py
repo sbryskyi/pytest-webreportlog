@@ -1,4 +1,5 @@
 """Unit tests for database-size formatting and parsing."""
+
 import pytest
 from webreportlog_server.utils import format_size, parse_size
 

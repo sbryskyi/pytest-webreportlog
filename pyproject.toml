@@ -18,6 +18,8 @@ dev = [
     # workspace members, installed editable into the shared dev venv
     "pytest-webreportlog",
     "webreportlog-server",
+    "pre-commit>=4.0",
+    "mypy>=1.13",
 ]
 
 [tool.pytest.ini_options]
@@ -45,3 +47,16 @@ line-length = 88
 select = ["E", "F", "I", "UP", "B", "SIM"]
 # B008: FastAPI uses function calls (Depends/File/...) in argument defaults by design.
 ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# test_sample/ is a deliberate fixture suite of failing/xfail/skip tests that the
+# plugin runs to generate reports; `assert False` is intentional sample behaviour.
+"test_sample/**" = ["B011"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["packages/plugin/src", "packages/server/src"]
+# SQLModel/SQLAlchemy attributes resolve to runtime descriptors mypy can't model
+# fully; keep the rest strict-ish without forcing annotations on third-party stubs.
+ignore_missing_imports = true
+warn_redundant_casts = true

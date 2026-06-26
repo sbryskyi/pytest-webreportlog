@@ -1,6 +1,8 @@
 """Test file with various skip scenarios for comparison testing."""
-import pytest
+
 import sys
+
+import pytest
 
 
 # Decorator skip with reason

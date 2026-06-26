@@ -1,4 +1,5 @@
 """Utility functions for test result processing."""
+
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -43,9 +44,7 @@ def format_size(num_bytes: int | None) -> str:
 
 
 def determine_test_outcome(
-    outcome: str | None,
-    keywords: dict | None = None,
-    has_wasxfail: bool = False
+    outcome: str | None, keywords: dict | None = None, has_wasxfail: bool = False
 ) -> tuple[str, str]:
     """Determine test result label and outcome category based on outcome and xfail status.
 
@@ -220,7 +219,7 @@ def update_test_outcome(
     when: str,
     outcome: str,
     keywords: dict,
-    record: dict
+    record: dict,
 ) -> None:
     """Update test outcomes tracking based on a test report.
 
@@ -253,7 +252,7 @@ def update_timestamp_bounds(
     current_min: float | None,
     current_max: float | None,
     start: float | None,
-    stop: float | None
+    stop: float | None,
 ) -> tuple[float | None, float | None]:
     """Update min/max timestamp bounds with new values.
 

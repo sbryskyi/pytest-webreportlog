@@ -1,4 +1,5 @@
 """Configuration for testing pytest report generation."""
+
 import pytest
 from pytest import Pytester
 

@@ -3,6 +3,7 @@
 This test verifies that the same test (nodeid) with different locations
 (due to line number changes) appears only once in the history overview.
 """
+
 import re
 
 
@@ -33,6 +34,7 @@ def test_history_overview_no_duplicates_for_same_nodeid(api_client):
 
     # Get history overview HTML
     import requests
+
     response = requests.get(f"{api_client.base_url}/history")
     assert response.status_code == 200
     content = response.text

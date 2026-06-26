@@ -4,6 +4,7 @@ Each test runs an inner pytest session (via pytester, in a subprocess so the
 installed plugin loads through its entry point) pointed at a stub event server,
 then asserts on the events the plugin streamed.
 """
+
 import pytest
 
 pytestmark = pytest.mark.plugin

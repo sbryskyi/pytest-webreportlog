@@ -1,4 +1,5 @@
 """Fixtures for web server tests."""
+
 import shutil
 import subprocess
 import tempfile
@@ -49,7 +50,9 @@ class APIClient:
             if data.get("session_id") is not None:
                 session_id = data["session_id"]
             if isinstance(data.get("session"), dict):
-                counts = {key: data["session"].get(key, counts[key]) for key in _COUNT_KEYS}
+                counts = {
+                    key: data["session"].get(key, counts[key]) for key in _COUNT_KEYS
+                }
         return {"status": "success", "session_id": session_id, **counts}
 
     def get_sessions(self) -> list[dict]:
