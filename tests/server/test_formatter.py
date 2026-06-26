@@ -259,7 +259,7 @@ def test_format_longrepr_dict_with_unicode() -> None:
 
 
 def test_format_longrepr_real_pytest_structure() -> None:
-    """Test formatting with real pytest-reportlog structure."""
+    """Test formatting with real reportlog-format structure."""
     longrepr = {
         "reprcrash": {
             "path": "test_sample.py",

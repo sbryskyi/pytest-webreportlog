@@ -9,6 +9,14 @@ wheels/
 # Virtual environments
 .venv
 
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editor / assistant
+.claude/
+
 # Generated report output (sample run artifacts)
 /reports/
 test_sample/reports/

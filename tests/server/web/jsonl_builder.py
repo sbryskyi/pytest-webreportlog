@@ -1,6 +1,6 @@
 """JSONL builder utility for creating test data programmatically.
 
-This module provides a fluent API for building pytest-reportlog JSONL content
+This module provides a fluent API for building reportlog-format JSONL content
 for tests. It eliminates the need for hardcoded JSON strings and makes test
 data creation more maintainable.
 
@@ -111,7 +111,7 @@ class TestBuilder:
 
 
 class JSONLBuilder:
-    """Fluent builder for pytest-reportlog JSONL content."""
+    """Fluent builder for reportlog-format JSONL content."""
 
     def __init__(self):
         self._records: list[dict] = []
